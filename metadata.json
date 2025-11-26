@@ -1,0 +1,7 @@
+{
+  "name": "MossypinePOS",
+  "description": "A modern, mobile-first Point of Sale and Inventory Management application featuring AI-powered product descriptions and a clean, card-based interface.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
