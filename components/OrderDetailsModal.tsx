@@ -15,11 +15,8 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, on
 
   const subtotal = transaction.orderItems 
     ? transaction.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) 
-    : transaction.amount / 1.08; // Fallback calculation if no details
+    : transaction.amount; 
     
-  const tax = transaction.orderItems 
-    ? subtotal * 0.08 
-    : transaction.amount - subtotal;
 
   const getStatusColor = (status: string) => {
       switch(status) {
@@ -109,10 +106,6 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, on
                  <div className="flex justify-between text-sm text-[#7A8C7A]">
                     <span>Subtotal</span>
                     <span>₱{subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm text-[#7A8C7A]">
-                    <span>Tax (8%)</span>
-                    <span>₱{tax.toFixed(2)}</span>
                 </div>
                 <div className="border-t border-dashed border-[#DCE7D9] pt-3 flex justify-between items-end">
                      <div>

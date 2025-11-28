@@ -6,7 +6,6 @@ import { Button } from './ui/Button';
 
 interface CheckoutDetails {
   subtotal: number;
-  tax: number;
   discount: number;
   total: number;
   paidAmount: number;
@@ -29,8 +28,7 @@ export const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onRemove, o
 
   // Calculations
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const tax = subtotal * 0.08; // 8% tax
-  const grossTotal = subtotal + tax;
+  const grossTotal = subtotal;
 
   let discount = 0;
   if (discountValue) {
@@ -62,7 +60,6 @@ export const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onRemove, o
   const handleCheckoutClick = () => {
       onCheckout({
           subtotal,
-          tax,
           discount,
           total: finalTotal,
           paidAmount: paid,
@@ -175,10 +172,6 @@ export const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onRemove, o
                     <div className="flex justify-between text-xs text-[#7A8C7A]">
                         <span>Subtotal</span>
                         <span>₱{subtotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs text-[#7A8C7A]">
-                        <span>Tax (8%)</span>
-                        <span>₱{tax.toFixed(2)}</span>
                     </div>
                     {discount > 0 && (
                          <div className="flex justify-between text-xs text-[#4A6741] font-medium">

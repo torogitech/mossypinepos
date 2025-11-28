@@ -1,3 +1,4 @@
+
 import { database, seedDatabase } from '../backend';
 import { Q } from '@nozbe/watermelondb';
 import Product from '../backend/models/Product';
@@ -9,7 +10,7 @@ import { Product as ProductType, Transaction as TransactionType, StockLog as Sto
 
 // Data Mappers
 const mapProduct = (p: Product): ProductType => ({
-  id: p.id,
+  id: (p as any).id,
   name: p.name,
   price: p.price,
   costPrice: p.costPrice,
@@ -21,7 +22,7 @@ const mapProduct = (p: Product): ProductType => ({
 });
 
 const mapTransaction = (t: Transaction): TransactionType => ({
-  id: t.id,
+  id: (t as any).id,
   date: t.dateStr,
   timestamp: t.timestamp,
   amount: t.amount,
@@ -36,7 +37,7 @@ const mapTransaction = (t: Transaction): TransactionType => ({
 });
 
 const mapStockLog = (l: StockLog): StockLogType => ({
-  id: l.id,
+  id: (l as any).id,
   productId: l.productId,
   productName: l.productName,
   action: l.action as any,
@@ -47,7 +48,7 @@ const mapStockLog = (l: StockLog): StockLogType => ({
 });
 
 const mapUser = (u: User): UserType => ({
-  id: u.id,
+  id: (u as any).id,
   name: u.name,
   email: u.email,
   role: u.role as Role,
@@ -57,7 +58,7 @@ const mapUser = (u: User): UserType => ({
 });
 
 const mapExpense = (e: Expense): ExpenseRecord => ({
-  id: e.id,
+  id: (e as any).id,
   title: e.title,
   amount: e.amount,
   category: e.category as ExpenseCategory,
@@ -288,6 +289,20 @@ export const dbService = {
   },
 
   // --- Admin ---
+
+  async clearInventory() {
+      await database.write(async () => {
+          const products = await database.get<Product>('products').query().fetch();
+          const stockLogs = await database.get<StockLog>('stock_logs').query().fetch();
+          
+          const batch = [
+              ...products.map(p => p.prepareDestroyPermanently()),
+              ...stockLogs.map(l => l.prepareDestroyPermanently())
+          ];
+          
+          await database.batch(...batch);
+      });
+  },
 
   async resetDatabase() {
       await database.write(async () => {

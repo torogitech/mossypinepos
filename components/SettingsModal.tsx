@@ -1,6 +1,7 @@
 
+
 import React from 'react';
-import { X, Bell, Globe, Database, Lock, RefreshCw } from 'lucide-react';
+import { X, Bell, Globe, Database, Lock, RefreshCw, Trash2 } from 'lucide-react';
 import { User } from '../types';
 
 interface SettingsModalProps {
@@ -14,6 +15,7 @@ interface SettingsModalProps {
   dailySalesReportEnabled: boolean;
   onToggleDailySalesReport: (enabled: boolean) => void;
   onResetData: () => void;
+  onClearInventory: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -26,7 +28,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onToggleLowStockAlerts,
   dailySalesReportEnabled,
   onToggleDailySalesReport,
-  onResetData
+  onResetData,
+  onClearInventory
 }) => {
   if (!isOpen) return null;
   
@@ -70,6 +73,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       }
   };
 
+  const handleClearInventoryClick = () => {
+      if (window.confirm("Are you sure you want to clear all inventory data? This will remove all products and stock history.")) {
+          onClearInventory();
+      }
+  };
+
   const isOwner = currentUser?.role === 'OWNER';
 
   return (
@@ -107,7 +116,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     disabled={!isOwner}
                     locked={!isOwner}
                 />
-                <div className="p-4 text-center border-t border-[#F2F5F1]">
+                <div className="p-4 space-y-3 border-t border-[#F2F5F1]">
+                     <button 
+                        onClick={handleClearInventoryClick}
+                        className="text-xs font-bold text-amber-600 hover:bg-amber-50 px-4 py-2 rounded-xl transition-colors flex items-center justify-center gap-2 w-full"
+                    >
+                        <Trash2 size={14} /> Clear Inventory Data
+                    </button>
+
                     <button 
                         onClick={handleResetClick}
                         className="text-xs font-bold text-red-500 hover:bg-red-50 px-4 py-2 rounded-xl transition-colors flex items-center justify-center gap-2 w-full"
@@ -115,7 +131,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <RefreshCw size={14} /> Reset Application Data
                     </button>
                     {!isOwner && (
-                        <p className="text-[10px] text-[#B0C4B0] mt-2">Only Owners can manage backup settings.</p>
+                        <p className="text-center text-[10px] text-[#B0C4B0]">Only Owners can manage data settings.</p>
                     )}
                 </div>
             </Section>

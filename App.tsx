@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Category, Product, CartItem, ViewMode, Transaction, StockLog, StockAction, User, ExpenseRecord } from './types';
 import { ProductCard } from './components/ProductCard';
@@ -232,10 +234,20 @@ const App: React.FC = () => {
       }
   };
 
-  const handleCheckout = async (details?: { subtotal: number, tax: number, discount: number, total: number, paidAmount: number, change: number }) => {
+  const handleClearInventory = async () => {
+      try {
+          await dbService.clearInventory();
+          await refreshData();
+          showNotification("Inventory cleared successfully", "success");
+          setIsSettingsOpen(false);
+      } catch (e) {
+          showNotification("Failed to clear inventory", "error");
+      }
+  };
+
+  const handleCheckout = async (details?: { subtotal: number, discount: number, total: number, paidAmount: number, change: number }) => {
     const subtotal = details ? details.subtotal : cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const tax = details ? details.tax : subtotal * 0.08;
-    const total = details ? details.total : subtotal + tax;
+    const total = details ? details.total : subtotal;
     const discount = details ? details.discount : 0;
     const paid = details ? details.paidAmount : 0;
     const change = details ? details.change : 0;
@@ -1066,7 +1078,19 @@ const App: React.FC = () => {
       {currentUser && <UserProfileModal isOpen={isUserProfileOpen} onClose={() => setIsUserProfileOpen(false)} currentUser={currentUser} onUpdateProfile={handleUpdateProfile} />}
       {currentUser && isOwner && <UserManagementModal isOpen={isUserManagementOpen} onClose={() => setIsUserManagementOpen(false)} users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} currentUserId={currentUser.id} />}
       {isAddExpenseModalOpen && <AddExpenseModal onSave={handleAddExpense} onClose={() => setIsAddExpenseModalOpen(false)} />}
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} currentUser={currentUser} autoBackupEnabled={autoBackupEnabled} onToggleAutoBackup={setAutoBackupEnabled} lowStockAlertsEnabled={lowStockAlerts} onToggleLowStockAlerts={setLowStockAlerts} dailySalesReportEnabled={dailySalesReports} onToggleDailySalesReport={setDailySalesReports} onResetData={handleResetData} />
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+        currentUser={currentUser} 
+        autoBackupEnabled={autoBackupEnabled} 
+        onToggleAutoBackup={setAutoBackupEnabled} 
+        lowStockAlertsEnabled={lowStockAlerts} 
+        onToggleLowStockAlerts={setLowStockAlerts} 
+        dailySalesReportEnabled={dailySalesReports} 
+        onToggleDailySalesReport={setDailySalesReports} 
+        onResetData={handleResetData}
+        onClearInventory={handleClearInventory}
+      />
       <LogoutConfirmationModal isOpen={isLogoutModalOpen} onClose={() => setIsLogoutModalOpen(false)} onConfirm={() => { handleLogout(); setIsLogoutModalOpen(false); }} />
       {toast && (
         <div className={`fixed top-10 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 z-50 ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-[#1A2F1A] text-white'}`}>
