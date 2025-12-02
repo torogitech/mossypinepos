@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Category, Product, CartItem, ViewMode, Transaction, StockLog, StockAction, User, ExpenseRecord } from './types';
 import { ProductCard } from './components/ProductCard';
@@ -22,6 +21,10 @@ import { ConfirmationModal } from './components/ConfirmationModal';
 import { Button } from './components/ui/Button';
 import { dbService } from './services/dbService';
 import { Scanner } from './components/Scanner';
+
+// Capacitor Imports
+import { App as CapacitorApp } from '@capacitor/app';
+import { StatusBar, Style } from '@capacitor/status-bar';
 
 import { 
   LayoutGrid, 
@@ -207,7 +210,105 @@ const App: React.FC = () => {
       }
     };
     initData();
+    
+    // Initialize Capacitor Status Bar
+    const initStatusBar = async () => {
+        try {
+            await StatusBar.setStyle({ style: Style.Light });
+            await StatusBar.setBackgroundColor({ color: '#F2F5F1' });
+        } catch (e) {
+            // Ignore if web
+        }
+    };
+    initStatusBar();
+
   }, []);
+
+  // --- Capacitor Hardware Back Button Handling ---
+  useEffect(() => {
+    const handleBackButton = async () => {
+        let handled = false;
+
+        // 1. High Priority Modals (Alerts/Confirmations)
+        if (confirmationState.isOpen) {
+            setConfirmationState(prev => ({ ...prev, isOpen: false }));
+            handled = true;
+        } 
+        else if (isLogoutModalOpen) {
+            setIsLogoutModalOpen(false);
+            handled = true;
+        }
+        else if (productToDelete) {
+            setProductToDelete(null);
+            handled = true;
+        }
+        else if (adjustingProduct) {
+            setAdjustingProduct(null);
+            handled = true;
+        }
+        
+        // 2. Full Screen / Large Modals
+        else if (selectedTransaction) {
+            setSelectedTransaction(null);
+            handled = true;
+        }
+        else if (isCartOpen) {
+            setIsCartOpen(false);
+            handled = true;
+        }
+        else if (isInventoryModalOpen) {
+            setIsInventoryModalOpen(false);
+            setEditingProduct(null);
+            handled = true;
+        }
+        else if (isBulkAddModalOpen) {
+            setIsBulkAddModalOpen(false);
+            handled = true;
+        }
+        else if (isCategoryManagementOpen) {
+            setIsCategoryManagementOpen(false);
+            handled = true;
+        }
+        else if (isSettingsOpen) {
+            setIsSettingsOpen(false);
+            handled = true;
+        }
+        else if (isUserProfileOpen) {
+            setIsUserProfileOpen(false);
+            handled = true;
+        }
+        else if (isUserManagementOpen) {
+            setIsUserManagementOpen(false);
+            handled = true;
+        }
+        else if (isAddExpenseModalOpen) {
+            setIsAddExpenseModalOpen(false);
+            handled = true;
+        }
+        
+        // 3. Navigation Views
+        else if (view !== 'HOME') {
+            setView('HOME');
+            handled = true;
+        }
+
+        // 4. Default Exit
+        if (!handled) {
+            CapacitorApp.exitApp();
+        }
+    };
+
+    const listener = CapacitorApp.addListener('backButton', handleBackButton);
+    return () => {
+        listener.then(l => l.remove());
+    };
+  }, [
+    confirmationState.isOpen, isLogoutModalOpen, productToDelete, adjustingProduct,
+    selectedTransaction, isCartOpen, isInventoryModalOpen, isBulkAddModalOpen,
+    isCategoryManagementOpen, isSettingsOpen, isUserProfileOpen, isUserManagementOpen,
+    isAddExpenseModalOpen, view
+  ]);
+
 
   const refreshData = async () => {
     const [p, t, s, u, e] = await Promise.all([
@@ -763,7 +864,7 @@ const App: React.FC = () => {
                   icon={<Package size={24} />} 
                   label="Stock" 
                   className="w-full h-16 rounded-2xl hover:bg-[#F2F5F1]" 
-                />
+              />
               )}
               {currentUser && !isStaff && (
                 <NavButton 
@@ -803,7 +904,7 @@ const App: React.FC = () => {
 
   const renderHome = () => (
     <>
-      <div className="sticky top-0 z-20 bg-[#F2F5F1]/95 backdrop-blur-sm pb-4 pt-2 -mx-2 px-2 md:mx-0 md:px-0">
+      <div className="sticky top-0 z-20 bg-[#F2F5F1]/95 backdrop-blur-sm pb-4 pt-[calc(0.5rem+env(safe-area-inset-top))] -mx-2 px-2 md:mx-0 md:px-0 transition-all">
          <div className="flex flex-col gap-4">
            <div className="flex items-center justify-between px-2 md:px-0">
              <h1 className="text-2xl font-bold text-[#1A2F1A]">Menu</h1>
@@ -878,9 +979,9 @@ const App: React.FC = () => {
   );
 
   const renderOverview = () => (
-    <div className="space-y-6 pb-24 lg:pb-8">
+    <div className="space-y-6 pb-24 lg:pb-8 pt-[calc(0.5rem+env(safe-area-inset-top))]">
       {/* Overview Cards Logic Same as before */}
-      <div className="flex justify-center pt-4">
+      <div className="flex justify-center pt-2">
         <div className="bg-white px-6 py-2 rounded-full shadow-sm flex items-center gap-2 text-[#4A6741] text-sm font-semibold border border-[#E8EFE6]">
           <Calendar size={16} />
           <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
@@ -938,12 +1039,12 @@ const App: React.FC = () => {
       
       <main className="flex-1 flex flex-col h-full relative overflow-hidden">
         <div className={`flex-1 overflow-y-auto no-scrollbar ${view === 'POS' ? 'bg-black' : ''}`}>
-          <div className={`w-full max-w-[1600px] mx-auto ${view !== 'POS' ? 'pt-2 md:pt-6 px-2 md:px-6 lg:px-8' : ''}`}>
+          <div className={`w-full max-w-[1600px] mx-auto ${view !== 'POS' ? 'px-2 md:px-6 lg:px-8' : ''}`}>
             {view === 'HOME' && renderHome()}
             {view === 'OVERVIEW' && renderOverview()}
             {view === 'TRANSACTIONS' && (
                  <div className="mb-24 lg:mb-8 mx-2 md:mx-0">
-                    <div className="sticky top-0 z-30 bg-[#F2F5F1]/95 backdrop-blur-sm pb-3 pt-2 -mx-2 px-2 md:mx-0 md:px-0">
+                    <div className="sticky top-0 z-30 bg-[#F2F5F1]/95 backdrop-blur-sm pb-3 pt-[calc(0.5rem+env(safe-area-inset-top))] -mx-2 px-2 md:mx-0 md:px-0">
                          <div className="flex items-center gap-3 mb-4 px-2 md:px-0">
                             <button onClick={() => setView('OVERVIEW')} className="bg-white p-2 rounded-full shadow-sm border border-[#E8EFE6]"><ArrowLeft size={20} /></button>
                             <h2 className="text-2xl font-bold text-[#1A2F1A]">Transactions</h2>
@@ -965,7 +1066,7 @@ const App: React.FC = () => {
             
             {view === 'INVENTORY' && (
                  <div className="mb-32 lg:mb-8 mx-2 md:mx-0">
-                    <div className="sticky top-0 z-30 bg-[#F2F5F1]/95 backdrop-blur-sm pb-3 pt-2 -mx-2 px-2 shadow-sm md:mx-0 md:px-0 flex justify-between items-center">
+                    <div className="sticky top-0 z-30 bg-[#F2F5F1]/95 backdrop-blur-sm pb-3 pt-[calc(0.5rem+env(safe-area-inset-top))] -mx-2 px-2 shadow-sm md:mx-0 md:px-0 flex justify-between items-center">
                         <h2 className="text-3xl font-bold text-[#1A2F1A]">Inventory</h2>
                         <div className="flex gap-2">
                              <button onClick={() => setIsCategoryManagementOpen(true)} className="bg-white p-2.5 rounded-full border border-[#E8EFE6] text-[#4A6741]"><Tag size={20}/></button>
@@ -990,7 +1091,7 @@ const App: React.FC = () => {
             )}
             
             {view === 'MORE' && (
-                <div className="mb-24 lg:mb-8 mx-2 md:mx-0 space-y-6">
+                <div className="mb-24 lg:mb-8 mx-2 md:mx-0 space-y-6 pt-[calc(0.5rem+env(safe-area-inset-top))]">
                     {currentUser ? (
                         <>
                          <h2 className="text-3xl font-bold text-[#1A2F1A]">More</h2>
@@ -1012,7 +1113,7 @@ const App: React.FC = () => {
             
             {view === 'EXPENSES' && (
                 <div className="mb-24 lg:mb-8 mx-2 md:mx-0">
-                    <div className="sticky top-0 z-30 bg-[#F2F5F1]/95 backdrop-blur-sm pb-3 pt-2 -mx-2 px-2 flex justify-between">
+                    <div className="sticky top-0 z-30 bg-[#F2F5F1]/95 backdrop-blur-sm pb-3 pt-[calc(0.5rem+env(safe-area-inset-top))] -mx-2 px-2 flex justify-between">
                          <div className="flex items-center gap-3"><button onClick={() => setView('OVERVIEW')} className="bg-white p-2 rounded-full border border-[#E8EFE6]"><ArrowLeft size={20}/></button><h2 className="text-2xl font-bold">Expenses</h2></div>
                          <button onClick={() => setIsAddExpenseModalOpen(true)} className="bg-[#1A2F1A] text-white px-4 rounded-xl text-xs font-bold flex items-center gap-2"><Plus size={16}/> Add</button>
                     </div>
@@ -1059,10 +1160,10 @@ const App: React.FC = () => {
       </main>
 
       {/* Mobile Bottom Navigation - Hidden on Desktop */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-[#F2F5F1] z-40 px-6 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.05)]">
-         <div className="max-w-lg mx-auto h-full flex items-center justify-between relative">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-[calc(5rem+env(safe-area-inset-bottom))] bg-white border-t border-[#F2F5F1] z-40 px-6 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.05)] pb-[env(safe-area-inset-bottom)]">
+         <div className="max-w-lg mx-auto h-20 flex items-center justify-between relative">
             <NavButton active={view === 'HOME'} onClick={() => setView('HOME')} icon={<Home size={24} />} label="Home" />
-            {currentUser && !isStaff && <NavButton active={view === 'INVENTORY'} onClick={() => setView('INVENTORY')} icon={<Package size={24} />} label="Inventory" />}
+            {currentUser && !isStaff && <NavButton active={view === 'INVENTORY'} onClick={() => setView('INVENTORY')} icon={<Package size={24} />} label="Inventory" /> }
             <div className="relative -top-6">
                 <button disabled={!currentUser} onClick={() => currentUser && setView('POS')} className={`h-16 w-16 rounded-full flex items-center justify-center shadow-xl transition-all ${view === 'POS' ? 'bg-[#4A6741] text-white ring-4 ring-[#DCE7D9]' : !currentUser ? 'bg-[#F2F5F1] text-[#B0C4B0] cursor-not-allowed' : 'bg-[#1A2F1A] text-white hover:bg-[#4A6741]'}`}>
                     <Scan size={28} />
