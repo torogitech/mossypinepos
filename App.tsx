@@ -924,6 +924,20 @@ const App: React.FC = () => {
                        </span>
                    )}
              </button>
+
+             {/* Mobile Order Button */}
+             <button 
+                  onClick={() => setIsCartOpen(true)}
+                  className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-xl font-bold text-xs bg-[#4A6741] text-white shadow-md active:scale-95 transition-all"
+             >
+                  <ShoppingBag size={16} />
+                  <span>Order</span>
+                  {totalCartItems > 0 && (
+                       <span className="bg-white text-[#4A6741] text-[10px] px-1.5 py-0.5 rounded-full ml-1 shadow-sm min-w-[20px] text-center flex items-center justify-center">
+                           {totalCartItems}
+                       </span>
+                   )}
+             </button>
            </div>
            <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center px-2 md:px-0">
               <div className="relative w-full">
@@ -1006,7 +1020,6 @@ const App: React.FC = () => {
       
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4 mx-2 md:mx-0">
         <DashboardCard icon={<FileText size={24} />} label="Expense" color="text-emerald-600" bg="bg-emerald-50" onClick={() => setView('EXPENSES')} />
-        <DashboardCard icon={<Users size={24} />} label="Customer" color="text-amber-600" bg="bg-amber-50" />
         <DashboardCard icon={<ShoppingBag size={24} />} label="Orders" color="text-blue-600" bg="bg-blue-50" onClick={() => setView('TRANSACTIONS')} />
         <DashboardCard icon={<PieChart size={24} />} label="Reports" color="text-purple-600" bg="bg-purple-50" onClick={() => isOwner ? setView('REPORTS') : showNotification("Restricted", "error")} />
       </div>

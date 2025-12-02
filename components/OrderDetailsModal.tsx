@@ -122,7 +122,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, on
             {/* Footer Info */}
             <div className="text-center text-xs text-[#B0C4B0] space-y-1">
                 <p>Served by {transaction.cashierName}</p>
-                <p>Thank you for dining with us!</p>
+                <p>Thank you!</p>
             </div>
 
         </div>

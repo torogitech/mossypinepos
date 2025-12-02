@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Category, Product } from '../types';
 import { Button } from './ui/Button';
 import { X, Sparkles, Image as ImageIcon, Upload, AlertCircle, Scan } from 'lucide-react';
@@ -15,10 +15,13 @@ interface InventoryFormProps {
 }
 
 export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, initialProduct, categories, products }) => {
+  // Initialize category: use existing, or first available, or empty string. Do NOT default to hardcoded 'Coffee'.
   const [name, setName] = useState(initialProduct?.name || '');
   const [price, setPrice] = useState(initialProduct?.price.toString() || '');
   const [costPrice, setCostPrice] = useState(initialProduct?.costPrice?.toString() || '');
-  const [category, setCategory] = useState<Category>(initialProduct?.category || categories[0] || 'Coffee');
+  const [category, setCategory] = useState<Category>(
+    initialProduct?.category || (categories.length > 0 ? categories[0] : '')
+  );
   const [stock, setStock] = useState(initialProduct?.stock.toString() || '');
   const [description, setDescription] = useState(initialProduct?.description || '');
   const [barcode, setBarcode] = useState(initialProduct?.barcode || '');
@@ -29,6 +32,13 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
   const [showScanner, setShowScanner] = useState(false);
 
   const isEditing = !!initialProduct;
+
+  // Effect to ensure category is valid if categories prop changes or on init if empty
+  useEffect(() => {
+      if (!category && categories.length > 0) {
+          setCategory(categories[0]);
+      }
+  }, [categories, category]);
 
   const handleGenerateDescription = async () => {
     if (!name) return;
@@ -106,6 +116,27 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    // Strict Validation
+    if (!name.trim()) {
+        setError('Product name is required. Please populate data.');
+        return;
+    }
+    if (!price || isNaN(parseFloat(price)) || parseFloat(price) < 0) {
+        setError('Valid price is required. Please populate data.');
+        return;
+    }
+    if (!stock || isNaN(parseInt(stock)) || parseInt(stock) < 0) {
+        setError('Valid stock quantity is required. Please populate data.');
+        return;
+    }
+    // Check if category is selected and exists
+    if (!category || category.trim() === '') {
+        setError('Category is missing. Please select a valid category.');
+        return;
+    }
+    
     const finalCostPrice = costPrice ? parseFloat(costPrice) : (parseFloat(price) * 0.6);
     
     const newProduct: Product = {
@@ -124,8 +155,6 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
 
   const handleBarcodeScanned = (code: string) => {
       setBarcode(code);
-      // Don't close immediately here, the Scanner component will handle the close timeout
-      // to allow the success animation to finish.
       
       const existing = products.find(p => p.barcode === code);
       if (existing) {
@@ -169,7 +198,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                 <label className="block text-xs font-bold text-[#4A6741] uppercase tracking-wider mb-2">Product Image</label>
                 <div 
                   className={`relative w-full h-40 rounded-2xl border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center cursor-pointer overflow-hidden group ${
-                    error
+                    error && !imagePreview && !isEditing // Highlight if error related to image (simplified logic)
                       ? 'border-red-300 bg-red-50'
                       : isDragging 
                         ? 'border-[#4A6741] bg-[#E8F5E9] scale-[1.02]' 
@@ -197,16 +226,16 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                   ) : (
                     <div className="flex flex-col items-center text-center p-4 pointer-events-none">
                       <div className={`p-3 rounded-full mb-2 transition-transform duration-300 ${
-                        error 
+                        error && !imagePreview
                           ? 'bg-red-100 text-red-500'
                           : isDragging 
                             ? 'bg-[#4A6741] text-white scale-110' 
                             : 'bg-white text-[#4A6741] shadow-sm group-hover:scale-110'
                       }`}>
-                        {error ? <AlertCircle size={24} /> : isDragging ? <Upload size={24} /> : <ImageIcon size={24} />}
+                        {error && !imagePreview ? <AlertCircle size={24} /> : isDragging ? <Upload size={24} /> : <ImageIcon size={24} />}
                       </div>
-                      <span className={`text-xs font-bold transition-colors ${error ? 'text-red-500' : isDragging ? 'text-[#4A6741]' : 'text-[#1A2F1A]'}`}>
-                        {error ? 'Upload Failed' : isDragging ? 'Drop image here' : 'Click or Drag to upload'}
+                      <span className={`text-xs font-bold transition-colors ${error && !imagePreview ? 'text-red-500' : isDragging ? 'text-[#4A6741]' : 'text-[#1A2F1A]'}`}>
+                        {error && !imagePreview ? 'Upload Failed' : isDragging ? 'Drop image here' : 'Click or Drag to upload'}
                       </span>
                       <span className={`text-[10px] mt-1 ${error ? 'text-red-400' : 'text-[#7A8C7A]'}`}>
                         {error ? 'Please try again' : 'PNG, JPG up to 5MB'}
@@ -224,12 +253,6 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                       </button>
                   )}
                 </div>
-                {error && (
-                  <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded-lg flex items-center gap-2 text-red-600 text-xs font-medium animate-in slide-in-from-top-1">
-                    <AlertCircle size={14} />
-                    {error}
-                  </div>
-                )}
             </div>
 
             {/* Barcode Section */}
@@ -313,11 +336,16 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                     <select 
                     value={category}
                     onChange={(e) => setCategory(e.target.value as Category)}
-                    className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all appearance-none"
+                    className={`w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all appearance-none ${!category ? 'text-[#B0C4B0]' : ''}`}
+                    required
                     >
-                    {categories.map(c => (
-                        <option key={c} value={c}>{c}</option>
-                    ))}
+                    {categories.length === 0 ? (
+                        <option value="">No Categories Found</option>
+                    ) : (
+                        categories.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                        ))
+                    )}
                     </select>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#4A6741]">
                         <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -325,6 +353,11 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                         </svg>
                     </div>
                 </div>
+                {categories.length === 0 && (
+                    <p className="text-[10px] text-red-500 mt-1 pl-1 font-bold">
+                        * Create a category first in Settings.
+                    </p>
+                )}
               </div>
             </div>
 
@@ -349,6 +382,13 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
               />
             </div>
             
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2 text-red-600 text-xs font-bold animate-in slide-in-from-top-1">
+                <AlertCircle size={16} className="shrink-0" />
+                {error}
+              </div>
+            )}
+
             <div className="pt-2 pb-2">
               <Button type="submit" className="w-full py-4 text-base shadow-xl shadow-[#4A6741]/20">
                 {isEditing ? 'Save Changes' : 'Add Item'}

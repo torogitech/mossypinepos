@@ -1,3 +1,4 @@
+
 // This file contains the initial data constants to seed the WatermelonDB database
 // Replicated from App.tsx for backend independence
 
@@ -68,24 +69,6 @@ export const INITIAL_USERS = [
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jane',
     phone: '+1 (555) 010-1234',
     joinedDate: '2023-01-15T00:00:00Z'
-  },
-  {
-    id: 'u2',
-    name: 'John Smith',
-    email: 'john@mossypine.com',
-    role: 'MANAGER',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John',
-    phone: '+1 (555) 010-5678',
-    joinedDate: '2023-03-20T00:00:00Z'
-  },
-  {
-    id: 'u3',
-    name: 'Sarah Staff',
-    email: 'sarah@mossypine.com',
-    role: 'STAFF',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
-    phone: '+1 (555) 010-9999',
-    joinedDate: '2023-06-10T00:00:00Z'
   }
 ];
 
