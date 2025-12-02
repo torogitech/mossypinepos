@@ -1,9 +1,10 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Category, Product } from '../types';
 import { Button } from './ui/Button';
-import { X, Sparkles, Image as ImageIcon, Upload, AlertCircle, Trash2, Scan, CheckCircle2, Zap, ZapOff, ZoomIn, ZoomOut } from 'lucide-react';
+import { X, Sparkles, Image as ImageIcon, Upload, AlertCircle, Scan } from 'lucide-react';
 import { generateProductDescription } from '../services/geminiService';
+import { Scanner } from './Scanner';
 
 interface InventoryFormProps {
   onSave: (product: Product) => void;
@@ -12,266 +13,6 @@ interface InventoryFormProps {
   categories: string[];
   products: Product[]; // To check for existing barcodes
 }
-
-const playScanSound = () => {
-  try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    
-    const ctx = new AudioContext();
-    const oscillator = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(ctx.destination);
-
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(1200, ctx.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.15);
-    gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-    oscillator.start();
-    oscillator.stop(ctx.currentTime + 0.2);
-  } catch (e) {
-    // Ignore audio errors
-  }
-};
-
-interface ScannerOverlayProps {
-  onClose: () => void;
-  onScan: (code: string) => void;
-  products: Product[];
-}
-
-const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onScan, products }) => {
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const [scanStatus, setScanStatus] = useState<'SEARCHING' | 'DETECTED' | 'ERROR'>('SEARCHING');
-    const [torchOn, setTorchOn] = useState(false);
-    const [hasNativeSupport, setHasNativeSupport] = useState(false);
-    const [track, setTrack] = useState<MediaStreamTrack | null>(null);
-    const [zoom, setZoom] = useState(1);
-    const [capabilities, setCapabilities] = useState<any>(null);
-    const [statusMessage, setStatusMessage] = useState<string>("Align barcode within frame");
-
-    useEffect(() => {
-        let stream: MediaStream | null = null;
-        let intervalId: any = null;
-        let detector: any = null;
-
-        // Check for native BarcodeDetector support
-        const hasSupport = 'BarcodeDetector' in window;
-        setHasNativeSupport(hasSupport);
-        
-        if (!hasSupport) {
-            setStatusMessage("Tap screen to simulate scan");
-        }
-
-        const initCamera = async () => {
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
-                      facingMode: 'environment',
-                      width: { ideal: 1920 },
-                      height: { ideal: 1080 },
-                      focusMode: 'continuous'
-                    } as any
-                });
-                
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                    // Wait for metadata to load to play
-                    videoRef.current.onloadedmetadata = () => {
-                        videoRef.current?.play().catch(e => console.log("Play error", e));
-                    };
-                }
-
-                const videoTrack = stream.getVideoTracks()[0];
-                setTrack(videoTrack);
-
-                // Get Capabilities
-                const caps = videoTrack.getCapabilities() as any;
-                setCapabilities(caps);
-                if (caps.zoom) {
-                    setZoom(caps.zoom.min || 1);
-                }
-
-                // Setup detection loop if supported
-                if (hasSupport) {
-                    detector = new (window as any).BarcodeDetector({
-                        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'qr_code', 'code_128', 'code_39']
-                    });
-
-                    intervalId = setInterval(async () => {
-                        if (videoRef.current && videoRef.current.readyState === 4 && scanStatus === 'SEARCHING') {
-                            try {
-                                const barcodes = await detector.detect(videoRef.current);
-                                if (barcodes.length > 0) {
-                                    handleSuccess(barcodes[0].rawValue);
-                                }
-                            } catch (e) {
-                                // Detection error or no barcode, ignore frame
-                            }
-                        }
-                    }, 100); // Check 10 times a second
-                }
-
-            } catch (err) {
-                console.error("Camera Init Error:", err);
-                setScanStatus('ERROR');
-                setStatusMessage("Camera access denied");
-            }
-        };
-
-        initCamera();
-
-        return () => {
-            if (intervalId) clearInterval(intervalId);
-            if (stream) stream.getTracks().forEach(t => t.stop());
-        };
-    }, [scanStatus]);
-
-    const handleSuccess = (code: string) => {
-        if (scanStatus === 'DETECTED') return;
-        setScanStatus('DETECTED');
-        playScanSound();
-        if (navigator.vibrate) navigator.vibrate(200);
-        
-        const existing = products.find(p => p.barcode === code);
-        setStatusMessage(existing ? `Found: ${existing.name}` : `Scanned: ${code}`);
-        
-        setTimeout(() => {
-            onScan(code);
-            onClose();
-        }, 800);
-    };
-
-    const handleSimulatedClick = () => {
-        // If native support is missing, allow click to simulate for demo purposes
-        if (!hasNativeSupport && scanStatus === 'SEARCHING') {
-            const mock = Math.floor(Math.random() * 9000000000000 + 1000000000000).toString();
-            handleSuccess(mock);
-        }
-    };
-    
-    const toggleTorch = async (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (track) {
-            try {
-                 await track.applyConstraints({ advanced: [{ torch: !torchOn }] } as any);
-                 setTorchOn(!torchOn);
-            } catch (e) {
-                console.log("Torch not supported on this device");
-            }
-        }
-    };
-
-    const handleZoom = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        e.stopPropagation();
-        const newZoom = parseFloat(e.target.value);
-        setZoom(newZoom);
-        if (track && capabilities?.zoom) {
-            try {
-                await track.applyConstraints({ advanced: [{ zoom: newZoom }] } as any);
-            } catch (err) {
-                console.error(err);
-            }
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black z-[60] flex flex-col animate-in fade-in duration-300" onClick={handleSimulatedClick}>
-            <div className="relative flex-1 bg-black overflow-hidden">
-                <video 
-                  ref={videoRef} 
-                  muted 
-                  playsInline 
-                  className="absolute inset-0 w-full h-full object-cover opacity-80" 
-                />
-                
-                {/* Header */}
-                <div className="absolute top-0 left-0 right-0 p-4 pt-8 flex justify-between items-center z-20 bg-gradient-to-b from-black/80 to-transparent">
-                    <div className="flex items-center gap-2 text-white">
-                       <Scan size={20} className="text-[#4A6741]" />
-                       <span className="font-bold text-lg">Scan Barcode</span>
-                    </div>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); onClose(); }} 
-                      className="bg-white/10 hover:bg-white/20 p-2 rounded-full text-white backdrop-blur-md transition-colors"
-                    >
-                      <X size={20}/>
-                    </button>
-                </div>
-
-                {/* Viewfinder */}
-                <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                    {/* Darkened Overlay */}
-                    <div className="absolute inset-0 bg-black/40">
-                       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-48 bg-transparent shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] rounded-2xl"></div>
-                    </div>
-
-                    {/* Scanning Frame */}
-                    <div className={`relative w-72 h-48 border-2 rounded-2xl transition-all duration-300 ${scanStatus === 'DETECTED' ? 'border-emerald-500 bg-emerald-500/10' : scanStatus === 'ERROR' ? 'border-red-500' : 'border-white/70'}`}>
-                        
-                        {/* Corner Markers */}
-                        <div className={`absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 rounded-tl-lg -mt-1 -ml-1 ${scanStatus === 'DETECTED' ? 'border-emerald-500' : 'border-[#4A6741]'}`}></div>
-                        <div className={`absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 rounded-tr-lg -mt-1 -mr-1 ${scanStatus === 'DETECTED' ? 'border-emerald-500' : 'border-[#4A6741]'}`}></div>
-                        <div className={`absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 rounded-bl-lg -mb-1 -ml-1 ${scanStatus === 'DETECTED' ? 'border-emerald-500' : 'border-[#4A6741]'}`}></div>
-                        <div className={`absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 rounded-br-lg -mb-1 -mr-1 ${scanStatus === 'DETECTED' ? 'border-emerald-500' : 'border-[#4A6741]'}`}></div>
-
-                        {scanStatus === 'SEARCHING' && (
-                            <div className="absolute top-0 left-4 right-4 h-0.5 bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] animate-[scan_2s_ease-in-out_infinite]"></div>
-                        )}
-                        
-                        {scanStatus === 'DETECTED' && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="bg-emerald-500/90 text-white p-3 rounded-full shadow-lg scale-125 transition-transform animate-in zoom-in">
-                                   <CheckCircle2 size={32} />
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-                
-                {/* Footer Controls */}
-                <div className="absolute bottom-10 left-0 right-0 flex flex-col items-center gap-6 z-20 pointer-events-none">
-                    
-                    {/* Zoom Control */}
-                    {capabilities?.zoom && (
-                        <div className="flex items-center gap-3 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 w-64 pointer-events-auto">
-                            <ZoomOut size={16} className="text-white/80" />
-                            <input 
-                              type="range" 
-                              min={capabilities.zoom.min} 
-                              max={capabilities.zoom.max} 
-                              step={0.1}
-                              value={zoom}
-                              onChange={handleZoom}
-                              className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
-                            />
-                            <ZoomIn size={16} className="text-white/80" />
-                        </div>
-                    )}
-
-                    <div className="bg-black/60 backdrop-blur-md px-6 py-3 rounded-full border border-white/10 pointer-events-auto">
-                         <span className={`font-medium text-sm ${scanStatus === 'ERROR' ? 'text-red-400' : scanStatus === 'DETECTED' ? 'text-emerald-400' : 'text-white'}`}>
-                             {statusMessage}
-                         </span>
-                    </div>
-                    
-                    {/* Torch Button */}
-                    {capabilities?.torch && (
-                      <button 
-                         onClick={toggleTorch}
-                         className={`p-4 rounded-full transition-all pointer-events-auto border ${torchOn ? 'bg-white text-black border-white' : 'bg-black/40 text-white border-white/20 hover:bg-black/60'}`}
-                      >
-                          {torchOn ? <ZapOff size={24} /> : <Zap size={24} />}
-                      </button>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
 
 export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, initialProduct, categories, products }) => {
   const [name, setName] = useState(initialProduct?.name || '');
@@ -305,7 +46,6 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
       return;
     }
 
-    // 5MB limit check matching UI text
     if (file.size > 5 * 1024 * 1024) {
       setError('Image size is too large (Max 5MB)');
       return;
@@ -366,7 +106,6 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Default cost price to 60% of selling price if not provided
     const finalCostPrice = costPrice ? parseFloat(costPrice) : (parseFloat(price) * 0.6);
     
     const newProduct: Product = {
@@ -385,12 +124,11 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
 
   const handleBarcodeScanned = (code: string) => {
       setBarcode(code);
-      setShowScanner(false);
+      // Don't close immediately here, the Scanner component will handle the close timeout
+      // to allow the success animation to finish.
       
-      // Check if product exists
       const existing = products.find(p => p.barcode === code);
       if (existing) {
-          // Populate fields
           setName(existing.name);
           setPrice(existing.price.toString());
           setCostPrice(existing.costPrice.toString());
@@ -404,10 +142,11 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
   return (
     <>
     {showScanner && (
-        <ScannerOverlay 
+        <Scanner 
             onClose={() => setShowScanner(false)} 
             onScan={handleBarcodeScanned}
             products={products}
+            continuous={false}
         />
     )}
     <div className="fixed inset-0 bg-[#1A2F1A]/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">

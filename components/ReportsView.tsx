@@ -241,7 +241,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ transactions, expenses
   };
 
   return (
-    <div className="mb-24 mx-2 md:mx-0 pb-10">
+    <div className="mb-24 lg:mb-8 mx-2 md:mx-0 pb-10 lg:pb-6">
       {/* Header */}
       <div className="sticky top-0 z-30 bg-[#F2F5F1]/95 backdrop-blur-sm pb-3 pt-2 -mx-2 px-2 md:mx-0 md:px-0">
         <div className="flex items-center gap-3 mb-4 px-2 md:px-0">

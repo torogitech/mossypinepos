@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Category, Product, CartItem, ViewMode, Transaction, StockLog, StockAction, User, ExpenseRecord } from './types';
 import { ProductCard } from './components/ProductCard';
@@ -19,8 +18,10 @@ import { AddExpenseModal } from './components/AddExpenseModal';
 import { OrderDetailsModal } from './components/OrderDetailsModal';
 import { ReportsView } from './components/ReportsView';
 import { CategoryManagementModal } from './components/CategoryManagementModal';
+import { ConfirmationModal } from './components/ConfirmationModal';
 import { Button } from './components/ui/Button';
 import { dbService } from './services/dbService';
+import { Scanner } from './components/Scanner';
 
 import { 
   LayoutGrid, 
@@ -98,19 +99,27 @@ interface NavButtonProps {
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
+  className?: string;
 }
 
-const NavButton: React.FC<NavButtonProps> = ({ active, onClick, icon, label }) => (
+const NavButton: React.FC<NavButtonProps> = ({ active, onClick, icon, label, className }) => (
   <button 
     onClick={onClick}
-    className={`flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors active:scale-95 ${
+    className={`flex flex-col items-center justify-center gap-1 transition-colors active:scale-95 ${
       active ? 'text-[#4A6741]' : 'text-[#B0C4B0] hover:text-[#1A2F1A]'
-    }`}
+    } ${className || 'w-16 h-full'}`}
   >
     {icon}
     <span className="text-[10px] font-bold">{label}</span>
   </button>
 );
+
+const formatDateSimple = (isoString: string) => {
+  return new Date(isoString).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric'
+  });
+};
 
 // Helper for persistent local settings
 const loadLocalSetting = <T,>(key: string, defaultState: T): T => {
@@ -165,16 +174,25 @@ const App: React.FC = () => {
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-
-  // Camera State
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const trackRef = useRef<MediaStreamTrack | null>(null);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const [torchOn, setTorchOn] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [capabilities, setCapabilities] = useState<any>(null);
-  const [scanSuccess, setScanSuccess] = useState(false);
-  const [scanError, setScanError] = useState(false);
+  
+  // Generic Confirmation Modal State
+  const [confirmationState, setConfirmationState] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    confirmLabel: string;
+    variant: 'danger' | 'warning' | 'primary';
+    icon: 'trash' | 'warning' | 'refresh';
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    confirmLabel: '',
+    variant: 'primary',
+    icon: 'warning',
+    onConfirm: () => {},
+  });
 
   // --- Initialization ---
   useEffect(() => {
@@ -221,7 +239,19 @@ const App: React.FC = () => {
       setTimeout(() => setToast(null), 3000);
   };
 
-  const handleResetData = async () => {
+  const handleResetDataRequest = () => {
+    setConfirmationState({
+      isOpen: true,
+      title: 'Reset All Data?',
+      description: 'Are you sure you want to wipe all data? This returns the app to its initial state and cannot be undone.',
+      confirmLabel: 'Reset Everything',
+      variant: 'danger',
+      icon: 'refresh',
+      onConfirm: executeResetData
+    });
+  };
+
+  const executeResetData = async () => {
       try {
         await dbService.resetDatabase();
         // Reset local preferences
@@ -234,7 +264,19 @@ const App: React.FC = () => {
       }
   };
 
-  const handleClearInventory = async () => {
+  const handleClearInventoryRequest = () => {
+    setConfirmationState({
+      isOpen: true,
+      title: 'Clear Inventory?',
+      description: 'Are you sure you want to clear all inventory data? This will permanently remove all products and stock history.',
+      confirmLabel: 'Clear Data',
+      variant: 'warning',
+      icon: 'trash',
+      onConfirm: executeClearInventory
+    });
+  };
+
+  const executeClearInventory = async () => {
       try {
           await dbService.clearInventory();
           await refreshData();
@@ -488,7 +530,19 @@ const App: React.FC = () => {
       }
   };
 
-  const handleDeleteUser = async (userId: string) => {
+  const handleDeleteUserRequest = (userId: string) => {
+     setConfirmationState({
+        isOpen: true,
+        title: 'Delete Team Member?',
+        description: 'Are you sure you want to remove this user from the team? This action cannot be undone.',
+        confirmLabel: 'Remove User',
+        variant: 'danger',
+        icon: 'trash',
+        onConfirm: () => executeDeleteUser(userId)
+     });
+  };
+
+  const executeDeleteUser = async (userId: string) => {
       try {
           await dbService.deleteUser(userId);
           await refreshData();
@@ -575,75 +629,6 @@ const App: React.FC = () => {
     };
   }, [transactions]);
 
-  const financialStats = useMemo(() => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const lastMonthDate = new Date(now);
-    lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
-    const lastMonth = lastMonthDate.getMonth();
-    const lastMonthYear = lastMonthDate.getFullYear();
-
-    const stats = {
-        revenue: { current: 0, previous: 0 },
-        expenses: { current: 0, previous: 0 }
-    };
-
-    transactions.forEach(t => {
-        if (t.status !== 'completed' || !t.timestamp) return;
-        const d = new Date(t.timestamp);
-        if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) stats.revenue.current += t.amount;
-        else if (d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear) stats.revenue.previous += t.amount;
-    });
-
-    manualExpenses.forEach(e => {
-        const d = new Date(e.date);
-        if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) stats.expenses.current += e.amount;
-        else if (d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear) stats.expenses.previous += e.amount;
-    });
-
-    stockHistory.forEach(log => {
-        const d = new Date(log.timestamp);
-        const isCurrent = d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-        const isPrevious = d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
-        if (!isCurrent && !isPrevious) return;
-
-        let cost = 0;
-        if (['RESTOCK', 'INITIAL', 'BULK_IMPORT'].includes(log.action)) {
-             const product = products.find(p => p.id === log.productId);
-             if (product) cost = log.quantityChange * product.costPrice;
-        } else if ((log.action === 'ADJUSTMENT' && log.quantityChange < 0) || log.action === 'DELETE') {
-             const product = products.find(p => p.id === log.productId);
-             if (product) cost = Math.abs(log.quantityChange) * product.costPrice;
-        }
-
-        if (isCurrent) stats.expenses.current += cost;
-        if (isPrevious) stats.expenses.previous += cost;
-    });
-
-    const profit = {
-        current: stats.revenue.current - stats.expenses.current,
-        previous: stats.revenue.previous - stats.expenses.previous
-    };
-
-    const margin = {
-        current: stats.revenue.current > 0 ? (profit.current / stats.revenue.current) * 100 : 0,
-        previous: stats.revenue.previous > 0 ? (profit.previous / stats.revenue.previous) * 100 : 0
-    };
-
-    const getPercentChange = (curr: number, prev: number) => {
-        if (prev === 0) return curr > 0 ? 100 : 0;
-        return ((curr - prev) / prev) * 100;
-    };
-
-    return {
-        revenue: { value: stats.revenue.current, change: getPercentChange(stats.revenue.current, stats.revenue.previous) },
-        expenses: { value: stats.expenses.current, change: getPercentChange(stats.expenses.current, stats.expenses.previous) },
-        profit: { value: profit.current, change: getPercentChange(profit.current, profit.previous) },
-        margin: { value: margin.current, change: margin.current - margin.previous }
-    };
-  }, [transactions, manualExpenses, stockHistory, products]);
-
   // Auth Helpers
   const isStaff = currentUser?.role === 'STAFF';
   const isOwner = currentUser?.role === 'OWNER';
@@ -657,41 +642,6 @@ const App: React.FC = () => {
     }
   }, [currentUser, isStaff, view]);
 
-  // Camera Setup
-  useEffect(() => {
-    let stream: MediaStream | null = null;
-    if (view === 'POS') {
-      setCameraError(null);
-      setTorchOn(false);
-      setZoomLevel(1);
-      setCapabilities(null);
-      setScanSuccess(false);
-      setScanError(false);
-
-      const constraints = {
-          audio: false,
-          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 }, focusMode: 'continuous' } as any
-      };
-
-      navigator.mediaDevices.getUserMedia(constraints)
-        .then(s => {
-          stream = s;
-          if (videoRef.current) videoRef.current.srcObject = stream;
-          const track = stream.getVideoTracks()[0];
-          trackRef.current = track;
-          const caps = track.getCapabilities() as any;
-          setCapabilities(caps);
-          if (caps.zoom) setZoomLevel(caps.zoom.min || 1);
-        })
-        .catch(err => {
-          setCameraError("Unable to access camera. Please check permissions.");
-        });
-    }
-    return () => {
-      if (stream) stream.getTracks().forEach(track => track.stop());
-      trackRef.current = null;
-    };
-  }, [view]);
 
   // Misc Handlers
   const handleLogin = (user: User) => {
@@ -761,31 +711,17 @@ const App: React.FC = () => {
     setEditingProduct(product);
     setIsInventoryModalOpen(true);
   };
-
-  const getLastUpdated = (productId: string): string | null => {
-    const log = stockHistory.find(l => l.productId === productId);
-    return log ? log.timestamp : null;
-  };
   
-  const formatDateSimple = (isoString: string) => {
-    return new Date(isoString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-  };
-  
-  // Handlers for Camera
-  const toggleTorch = async () => {
-      if (!trackRef.current) return;
-      try {
-          await trackRef.current.applyConstraints({ advanced: [{ torch: !torchOn }] } as any);
-          setTorchOn(!torchOn);
-      } catch (e) {}
-  };
-
-  const handleZoom = async (newZoom: number) => {
-      if (!trackRef.current) return;
-      try {
-          await trackRef.current.applyConstraints({ advanced: [{ zoom: newZoom }] } as any);
-          setZoomLevel(newZoom);
-      } catch (e) {}
+  // Handler for POS Scanning
+  const handlePosScan = (code: string) => {
+    const product = products.find(p => p.barcode === code);
+    if (product) {
+       // Check if already in cart to maybe just increment (addToCart handles logic)
+       addToCart(product, false); // false = don't open cart drawer, just add
+       showNotification(`Added ${product.name}`, 'success');
+    } else {
+       showNotification(`Unknown item: ${code}`, 'error');
+    }
   };
 
   if (!isDbReady) {
@@ -800,6 +736,70 @@ const App: React.FC = () => {
       </div>
     );
   }
+
+  // --- Layout Components ---
+
+  const renderSidebar = () => (
+    <aside className="hidden lg:flex flex-col w-24 bg-white border-r border-[#E8EFE6] items-center py-6 gap-6 z-30 shrink-0 h-full">
+        <div 
+          className="h-12 w-12 bg-[#1A2F1A] rounded-2xl flex items-center justify-center shadow-xl shadow-[#4A6741]/20 mb-4 shrink-0 cursor-pointer hover:scale-105 transition-transform" 
+          onClick={() => setView('HOME')}
+        >
+          <span className="text-white font-bold text-lg tracking-tighter">Mp.</span>
+        </div>
+
+        <div className="flex flex-col gap-4 w-full px-2">
+              <NavButton 
+                active={view === 'HOME'} 
+                onClick={() => setView('HOME')} 
+                icon={<Home size={24} />} 
+                label="Home" 
+                className="w-full h-16 rounded-2xl hover:bg-[#F2F5F1]" 
+              />
+              {currentUser && !isStaff && (
+                <NavButton 
+                  active={view === 'INVENTORY'} 
+                  onClick={() => setView('INVENTORY')} 
+                  icon={<Package size={24} />} 
+                  label="Stock" 
+                  className="w-full h-16 rounded-2xl hover:bg-[#F2F5F1]" 
+                />
+              )}
+              {currentUser && !isStaff && (
+                <NavButton 
+                  active={['OVERVIEW', 'TRANSACTIONS', 'EXPENSES', 'REPORTS'].includes(view)} 
+                  onClick={() => setView('OVERVIEW')} 
+                  icon={<PieChart size={24} />} 
+                  label="Stats" 
+                  className="w-full h-16 rounded-2xl hover:bg-[#F2F5F1]" 
+                />
+              )}
+        </div>
+
+        <div className="mt-auto flex flex-col gap-4 w-full px-2">
+              {currentUser && (
+                  <button
+                    onClick={() => setView('POS')}
+                    disabled={!currentUser}
+                    className={`w-full aspect-square rounded-2xl flex flex-col items-center justify-center shadow-lg transition-all gap-1 ${
+                          view === 'POS' ? 'bg-[#4A6741] text-white' : 'bg-[#1A2F1A] text-white hover:bg-[#4A6741] active:scale-95'
+                    }`}
+                    title="POS Terminal"
+                  >
+                    <Scan size={24} />
+                    <span className="text-[9px] font-bold">POS</span>
+                  </button>
+              )}
+              <NavButton 
+                active={view === 'MORE'} 
+                onClick={() => setView('MORE')} 
+                icon={<MoreHorizontal size={24} />} 
+                label={currentUser ? "More" : "Login"} 
+                className="w-full h-16 rounded-2xl hover:bg-[#F2F5F1]" 
+              />
+        </div>
+    </aside>
+  );
 
   const renderHome = () => (
     <>
@@ -858,7 +858,7 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 pb-32 px-2 md:px-0 transition-all duration-300 ease-in-out">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 pb-32 lg:pb-8 px-2 md:px-0 transition-all duration-300 ease-in-out">
         {filteredProducts.map(product => (
           <ProductCard 
             key={product.id} 
@@ -878,7 +878,7 @@ const App: React.FC = () => {
   );
 
   const renderOverview = () => (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6 pb-24 lg:pb-8">
       {/* Overview Cards Logic Same as before */}
       <div className="flex justify-center pt-4">
         <div className="bg-white px-6 py-2 rounded-full shadow-sm flex items-center gap-2 text-[#4A6741] text-sm font-semibold border border-[#E8EFE6]">
@@ -934,13 +934,15 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-[100dvh] w-full bg-[#F2F5F1] text-[#1A2F1A] font-sans overflow-hidden transition-all duration-300 ease-in-out">
+      {renderSidebar()}
+      
       <main className="flex-1 flex flex-col h-full relative overflow-hidden">
         <div className={`flex-1 overflow-y-auto no-scrollbar ${view === 'POS' ? 'bg-black' : ''}`}>
           <div className={`w-full max-w-[1600px] mx-auto ${view !== 'POS' ? 'pt-2 md:pt-6 px-2 md:px-6 lg:px-8' : ''}`}>
             {view === 'HOME' && renderHome()}
             {view === 'OVERVIEW' && renderOverview()}
             {view === 'TRANSACTIONS' && (
-                 <div className="mb-24 mx-2 md:mx-0">
+                 <div className="mb-24 lg:mb-8 mx-2 md:mx-0">
                     <div className="sticky top-0 z-30 bg-[#F2F5F1]/95 backdrop-blur-sm pb-3 pt-2 -mx-2 px-2 md:mx-0 md:px-0">
                          <div className="flex items-center gap-3 mb-4 px-2 md:px-0">
                             <button onClick={() => setView('OVERVIEW')} className="bg-white p-2 rounded-full shadow-sm border border-[#E8EFE6]"><ArrowLeft size={20} /></button>
@@ -962,7 +964,7 @@ const App: React.FC = () => {
             )}
             
             {view === 'INVENTORY' && (
-                 <div className="mb-32 mx-2 md:mx-0">
+                 <div className="mb-32 lg:mb-8 mx-2 md:mx-0">
                     <div className="sticky top-0 z-30 bg-[#F2F5F1]/95 backdrop-blur-sm pb-3 pt-2 -mx-2 px-2 shadow-sm md:mx-0 md:px-0 flex justify-between items-center">
                         <h2 className="text-3xl font-bold text-[#1A2F1A]">Inventory</h2>
                         <div className="flex gap-2">
@@ -970,7 +972,7 @@ const App: React.FC = () => {
                              <button onClick={() => setIsBulkAddModalOpen(true)} className="bg-white p-2.5 rounded-full border border-[#E8EFE6] text-[#4A6741]"><Upload size={20}/></button>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pt-2">
                         {filteredProducts.map(p => (
                             <div key={p.id} onClick={() => openEditModal(p)} className="bg-white p-3 rounded-3xl border border-[#E8EFE6] shadow-sm cursor-pointer hover:shadow-md">
                                 <div className="aspect-square bg-[#F2F5F1] rounded-2xl overflow-hidden mb-2"><img src={p.image} className="w-full h-full object-cover"/></div>
@@ -983,12 +985,12 @@ const App: React.FC = () => {
                             </div>
                         ))}
                     </div>
-                    <button onClick={() => { setEditingProduct(null); setIsInventoryModalOpen(true); }} className="fixed bottom-24 right-4 h-14 w-14 bg-[#4A6741] text-white rounded-full shadow-xl flex items-center justify-center z-40"><Plus size={28}/></button>
+                    <button onClick={() => { setEditingProduct(null); setIsInventoryModalOpen(true); }} className="fixed bottom-24 lg:bottom-8 right-4 lg:right-8 h-14 w-14 bg-[#4A6741] text-white rounded-full shadow-xl flex items-center justify-center z-40 hover:scale-105 transition-transform"><Plus size={28}/></button>
                  </div>
             )}
             
             {view === 'MORE' && (
-                <div className="mb-24 mx-2 md:mx-0 space-y-6">
+                <div className="mb-24 lg:mb-8 mx-2 md:mx-0 space-y-6">
                     {currentUser ? (
                         <>
                          <h2 className="text-3xl font-bold text-[#1A2F1A]">More</h2>
@@ -996,7 +998,7 @@ const App: React.FC = () => {
                              <img src={currentUser.avatar} className="w-16 h-16 rounded-full"/>
                              <div><h3 className="font-bold text-lg">{currentUser.name}</h3><p className="text-xs text-[#7A8C7A]">{currentUser.email}</p></div>
                          </div>
-                         <div className="grid grid-cols-2 gap-4">
+                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                              <button onClick={() => setIsSettingsOpen(true)} className="bg-white p-5 rounded-3xl border border-[#E8EFE6] h-32 flex flex-col items-center justify-center gap-2"><Settings size={24}/><span className="font-bold text-sm">Settings</span></button>
                              {isOwner && <button onClick={() => setIsUserManagementOpen(true)} className="bg-white p-5 rounded-3xl border border-[#E8EFE6] h-32 flex flex-col items-center justify-center gap-2"><Users size={24}/><span className="font-bold text-sm">Team</span></button>}
                              <button onClick={() => setIsLogoutModalOpen(true)} className="bg-white p-5 rounded-3xl border border-[#E8EFE6] h-32 flex flex-col items-center justify-center gap-2 text-red-500"><LogOut size={24}/><span className="font-bold text-sm">Log Out</span></button>
@@ -1009,7 +1011,7 @@ const App: React.FC = () => {
             )}
             
             {view === 'EXPENSES' && (
-                <div className="mb-24 mx-2 md:mx-0">
+                <div className="mb-24 lg:mb-8 mx-2 md:mx-0">
                     <div className="sticky top-0 z-30 bg-[#F2F5F1]/95 backdrop-blur-sm pb-3 pt-2 -mx-2 px-2 flex justify-between">
                          <div className="flex items-center gap-3"><button onClick={() => setView('OVERVIEW')} className="bg-white p-2 rounded-full border border-[#E8EFE6]"><ArrowLeft size={20}/></button><h2 className="text-2xl font-bold">Expenses</h2></div>
                          <button onClick={() => setIsAddExpenseModalOpen(true)} className="bg-[#1A2F1A] text-white px-4 rounded-xl text-xs font-bold flex items-center gap-2"><Plus size={16}/> Add</button>
@@ -1030,11 +1032,12 @@ const App: React.FC = () => {
             )}
             
             {view === 'POS' && (
-                 <div className="fixed inset-0 bg-black z-50 flex flex-col">
-                     <div className="absolute top-4 right-4 z-50"><button onClick={() => setView('HOME')} className="text-white bg-white/20 p-2 rounded-full"><X size={20}/></button></div>
-                     <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover opacity-80" />
-                     <div className="absolute bottom-20 left-0 right-0 text-center"><p className="text-white bg-black/50 inline-block px-4 py-2 rounded-full">Scanner Active</p></div>
-                 </div>
+                 <Scanner 
+                    onClose={() => setView('HOME')} 
+                    onScan={handlePosScan} 
+                    products={products}
+                    continuous={true}
+                 />
             )}
           </div>
         </div>
@@ -1055,7 +1058,8 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <div className="fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-[#F2F5F1] z-40 px-6 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.05)]">
+      {/* Mobile Bottom Navigation - Hidden on Desktop */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-[#F2F5F1] z-40 px-6 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.05)]">
          <div className="max-w-lg mx-auto h-full flex items-center justify-between relative">
             <NavButton active={view === 'HOME'} onClick={() => setView('HOME')} icon={<Home size={24} />} label="Home" />
             {currentUser && !isStaff && <NavButton active={view === 'INVENTORY'} onClick={() => setView('INVENTORY')} icon={<Package size={24} />} label="Inventory" />}
@@ -1076,7 +1080,7 @@ const App: React.FC = () => {
       <StockAdjustmentModal isOpen={!!adjustingProduct} onClose={() => setAdjustingProduct(null)} onConfirm={handleConfirmAdjustment} product={adjustingProduct} />
       <OrderDetailsModal isOpen={!!selectedTransaction} onClose={() => setSelectedTransaction(null)} transaction={selectedTransaction} />
       {currentUser && <UserProfileModal isOpen={isUserProfileOpen} onClose={() => setIsUserProfileOpen(false)} currentUser={currentUser} onUpdateProfile={handleUpdateProfile} />}
-      {currentUser && isOwner && <UserManagementModal isOpen={isUserManagementOpen} onClose={() => setIsUserManagementOpen(false)} users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} currentUserId={currentUser.id} />}
+      {currentUser && isOwner && <UserManagementModal isOpen={isUserManagementOpen} onClose={() => setIsUserManagementOpen(false)} users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUserRequest} currentUserId={currentUser.id} />}
       {isAddExpenseModalOpen && <AddExpenseModal onSave={handleAddExpense} onClose={() => setIsAddExpenseModalOpen(false)} />}
       <SettingsModal 
         isOpen={isSettingsOpen} 
@@ -1088,12 +1092,22 @@ const App: React.FC = () => {
         onToggleLowStockAlerts={setLowStockAlerts} 
         dailySalesReportEnabled={dailySalesReports} 
         onToggleDailySalesReport={setDailySalesReports} 
-        onResetData={handleResetData}
-        onClearInventory={handleClearInventory}
+        onResetData={handleResetDataRequest}
+        onClearInventory={handleClearInventoryRequest}
+      />
+      <ConfirmationModal 
+        isOpen={confirmationState.isOpen}
+        onClose={() => setConfirmationState(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmationState.onConfirm}
+        title={confirmationState.title}
+        description={confirmationState.description}
+        confirmLabel={confirmationState.confirmLabel}
+        variant={confirmationState.variant}
+        icon={confirmationState.icon}
       />
       <LogoutConfirmationModal isOpen={isLogoutModalOpen} onClose={() => setIsLogoutModalOpen(false)} onConfirm={() => { handleLogout(); setIsLogoutModalOpen(false); }} />
       {toast && (
-        <div className={`fixed top-10 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 z-50 ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-[#1A2F1A] text-white'}`}>
+        <div className={`fixed top-10 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 z-[80] ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-[#1A2F1A] text-white'}`}>
           <div className={`rounded-full p-1 ${toast.type === 'error' ? 'bg-white/20' : 'bg-[#4A6741]'}`}>{toast.type === 'error' ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}</div>
           <span className="font-medium text-sm">{toast.message}</span>
         </div>

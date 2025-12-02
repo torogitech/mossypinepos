@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { X, Bell, Globe, Database, Lock, RefreshCw, Trash2 } from 'lucide-react';
 import { User } from '../types';
@@ -67,18 +65,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       </div>
   );
 
-  const handleResetClick = () => {
-      if (window.confirm("Are you sure you want to wipe all data? This returns the app to its initial state and cannot be undone.")) {
-          onResetData();
-      }
-  };
-
-  const handleClearInventoryClick = () => {
-      if (window.confirm("Are you sure you want to clear all inventory data? This will remove all products and stock history.")) {
-          onClearInventory();
-      }
-  };
-
   const isOwner = currentUser?.role === 'OWNER';
 
   return (
@@ -118,14 +104,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
                 <div className="p-4 space-y-3 border-t border-[#F2F5F1]">
                      <button 
-                        onClick={handleClearInventoryClick}
+                        onClick={onClearInventory}
                         className="text-xs font-bold text-amber-600 hover:bg-amber-50 px-4 py-2 rounded-xl transition-colors flex items-center justify-center gap-2 w-full"
                     >
                         <Trash2 size={14} /> Clear Inventory Data
                     </button>
 
                     <button 
-                        onClick={handleResetClick}
+                        onClick={onResetData}
                         className="text-xs font-bold text-red-500 hover:bg-red-50 px-4 py-2 rounded-xl transition-colors flex items-center justify-center gap-2 w-full"
                     >
                         <RefreshCw size={14} /> Reset Application Data
