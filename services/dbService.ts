@@ -300,14 +300,36 @@ export const dbService = {
               ...stockLogs.map(l => l.prepareDestroyPermanently())
           ];
           
-          await database.batch(...batch);
+          if (batch.length > 0) {
+            await database.batch(...batch);
+          }
       });
   },
 
   async resetDatabase() {
+      // Instead of unsafeResetDatabase(), we manually clear all tables
+      // This avoids "blocked by another connection" errors common with IndexedDB adapters
       await database.write(async () => {
-         await database.unsafeResetDatabase();
+         const products = await database.get<Product>('products').query().fetch();
+         const transactions = await database.get<Transaction>('transactions').query().fetch();
+         const logs = await database.get<StockLog>('stock_logs').query().fetch();
+         const users = await database.get<User>('users').query().fetch();
+         const expenses = await database.get<Expense>('expenses').query().fetch();
+
+         const allRecords = [
+             ...products,
+             ...transactions,
+             ...logs,
+             ...users,
+             ...expenses
+         ];
+         
+         if (allRecords.length > 0) {
+             const batch = allRecords.map(record => record.prepareDestroyPermanently());
+             await database.batch(...batch);
+         }
       });
+      // Re-initialize with seed data
       await this.initialize();
   }
 };
