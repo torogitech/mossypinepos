@@ -112,7 +112,7 @@ export const BulkAddModal: React.FC<BulkAddModalProps> = ({ onSave, onClose, cat
                     <textarea 
                         value={csvData}
                         onChange={(e) => setCsvData(e.target.value)}
-                        className="w-full h-40 p-4 bg-[#F2F5F1] border-none rounded-2xl text-sm font-mono focus:ring-2 focus:ring-[#4A6741]/50 focus:outline-none placeholder-[#B0C4B0]"
+                        className="w-full h-40 p-4 bg-[#F2F5F1] border-none rounded-2xl text-sm font-mono focus:ring-2 focus:ring-[#4A6741]/50 focus:outline-none placeholder-[#B0C4B0] uppercase"
                         placeholder="Paste CSV data here..."
                     />
 

@@ -947,7 +947,7 @@ const App: React.FC = () => {
                       placeholder="Search items..." 
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-12 pr-10 py-3 bg-white rounded-2xl border border-[#E8EFE6] text-sm focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 shadow-sm placeholder-[#B0C4B0]"
+                      className="w-full pl-12 pr-10 py-3 bg-white rounded-2xl border border-[#E8EFE6] text-sm focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 shadow-sm placeholder-[#B0C4B0] uppercase"
                   />
                   {searchQuery && (
                        <button onClick={() => setSearchQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#B0C4B0] hover:text-[#1A2F1A] p-1 rounded-full hover:bg-[#F2F5F1]"><X size={16} /></button>

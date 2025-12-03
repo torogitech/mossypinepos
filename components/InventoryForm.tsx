@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { Category, Product } from '../types';
 import { Button } from './ui/Button';
-import { X, Sparkles, Image as ImageIcon, Upload, AlertCircle, Scan } from 'lucide-react';
-import { generateProductDescription } from '../services/geminiService';
+import { X, Sparkles, Image as ImageIcon, Upload, AlertCircle, Scan, Wand2 } from 'lucide-react';
+import { generateProductDescription, generateProductDetails } from '../services/geminiService';
 import { Scanner } from './Scanner';
 
 interface InventoryFormProps {
@@ -26,6 +25,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
   const [description, setDescription] = useState(initialProduct?.description || '');
   const [barcode, setBarcode] = useState(initialProduct?.barcode || '');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(initialProduct?.image || null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +46,30 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
     const desc = await generateProductDescription(name, category);
     setDescription(desc);
     setIsGenerating(false);
+  };
+
+  const handleAutoFill = async () => {
+    if (!name) return;
+    setIsAutoFilling(true);
+    try {
+        const details = await generateProductDetails(name, categories);
+        if (details) {
+            setDescription(details.description);
+            if (!price || price === '0') setPrice(details.price.toString());
+            
+            // Attempt to match category
+            if (details.category && categories.includes(details.category)) {
+                setCategory(details.category);
+            } else if (categories.length > 0 && !category) {
+                // Fallback to first if not found and not set
+                setCategory(categories[0]);
+            }
+        }
+    } catch (e) {
+        console.error("Auto-fill failed", e);
+    } finally {
+        setIsAutoFilling(false);
+    }
   };
 
   const processFile = (file: File) => {
@@ -264,7 +288,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                         type="text" 
                         value={barcode}
                         onChange={(e) => setBarcode(e.target.value)}
-                        className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all"
+                        className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all uppercase"
                         placeholder="Scan or type..."
                       />
                   </div>
@@ -282,14 +306,26 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
 
             <div>
               <label className="block text-xs font-bold text-[#4A6741] uppercase tracking-wider mb-2">Item Name</label>
-              <input 
-                required
-                type="text" 
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all"
-                placeholder="e.g., Vanilla Latte"
-              />
+              <div className="relative">
+                  <input 
+                    required
+                    type="text" 
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full pl-4 pr-12 py-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all uppercase"
+                    placeholder="e.g., Vanilla Latte"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAutoFill}
+                    disabled={!name || isAutoFilling}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-[#4A6741] hover:bg-[#DCE7D9] rounded-xl transition-colors disabled:opacity-50"
+                    title="Auto-fill details with AI"
+                  >
+                    <Wand2 size={20} className={isAutoFilling ? "animate-spin" : ""} />
+                  </button>
+              </div>
+              <p className="text-[10px] text-[#7A8C7A] mt-1 pl-1">Tap the wand to auto-fill details based on name.</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -301,7 +337,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                   step="0.01"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all"
+                  className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all uppercase"
                   placeholder="0.00"
                 />
               </div>
@@ -312,7 +348,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                   step="0.01"
                   value={costPrice}
                   onChange={(e) => setCostPrice(e.target.value)}
-                  className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all"
+                  className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all uppercase"
                   placeholder="0.00"
                 />
               </div>
@@ -326,7 +362,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                   type="number" 
                   value={stock}
                   onChange={(e) => setStock(e.target.value)}
-                  className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all"
+                  className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all uppercase"
                   placeholder="100"
                 />
               </div>
@@ -336,7 +372,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                     <select 
                     value={category}
                     onChange={(e) => setCategory(e.target.value as Category)}
-                    className={`w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all appearance-none ${!category ? 'text-[#B0C4B0]' : ''}`}
+                    className={`w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all appearance-none uppercase ${!category ? 'text-[#B0C4B0]' : ''}`}
                     required
                     >
                     {categories.length === 0 ? (
@@ -377,7 +413,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
               <textarea 
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all h-24 resize-none"
+                className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all h-24 resize-none uppercase"
                 placeholder="Product details..."
               />
             </div>

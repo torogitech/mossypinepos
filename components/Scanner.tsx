@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Scan, CheckCircle2, Zap, ZapOff, ZoomIn, ZoomOut, AlertTriangle, Settings } from 'lucide-react';
+import { X, Scan, CheckCircle2, Zap, ZapOff, ZoomIn, ZoomOut, AlertTriangle, Settings, Camera as CameraIcon } from 'lucide-react';
 import { Product } from '../types';
 import { Camera } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
@@ -40,44 +41,72 @@ const playScanSound = () => {
 
 export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, continuous = false }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
-    const [scanStatus, setScanStatus] = useState<'SEARCHING' | 'DETECTED' | 'ERROR' | 'PERMISSION_DENIED'>('SEARCHING');
+    const streamRef = useRef<MediaStream | null>(null);
+    
+    // Status State Machine: IDLE -> PERMISSION_PROMPT -> SEARCHING -> DETECTED
+    const [scanStatus, setScanStatus] = useState<'IDLE' | 'PERMISSION_PROMPT' | 'SEARCHING' | 'DETECTED' | 'ERROR' | 'PERMISSION_DENIED'>('IDLE');
+    
     const [torchOn, setTorchOn] = useState(false);
     const [hasNativeSupport, setHasNativeSupport] = useState(false);
     const [track, setTrack] = useState<MediaStreamTrack | null>(null);
     const [zoom, setZoom] = useState(1);
     const [capabilities, setCapabilities] = useState<any>(null);
-    const [statusMessage, setStatusMessage] = useState<string>("Align barcode within frame");
+    const [statusMessage, setStatusMessage] = useState<string>("Initializing camera...");
     const [flash, setFlash] = useState(false);
 
+    // 1. Initial Permission Check
     useEffect(() => {
-        let stream: MediaStream | null = null;
+        const checkPermissions = async () => {
+            if (!Capacitor.isNativePlatform()) {
+                setScanStatus('SEARCHING');
+                return;
+            }
+
+            try {
+                const permissions = await Camera.checkPermissions();
+                if (permissions.camera === 'granted') {
+                    setScanStatus('SEARCHING');
+                } else if (permissions.camera === 'denied') {
+                    setScanStatus('PERMISSION_DENIED');
+                } else {
+                    // 'prompt' or 'prompt-with-rationale'
+                    setScanStatus('PERMISSION_PROMPT');
+                }
+            } catch (error) {
+                console.error("Permission check failed", error);
+                // Fallback to searching if check fails (might be web)
+                setScanStatus('SEARCHING');
+            }
+        };
+
+        checkPermissions();
+
+        return () => {
+            stopCamera();
+        };
+    }, []);
+
+    // 2. Camera Initialization (Runs only when status is SEARCHING)
+    useEffect(() => {
         let intervalId: any = null;
         let detector: any = null;
 
-        const hasSupport = 'BarcodeDetector' in window;
-        setHasNativeSupport(hasSupport);
-        
-        if (!hasSupport) {
-            setStatusMessage("Tap screen to simulate scan (Demo Mode)");
-        }
+        const startCamera = async () => {
+            if (scanStatus !== 'SEARCHING') return;
 
-        const initCamera = async () => {
+            setStatusMessage("Align barcode within frame");
+            const hasSupport = 'BarcodeDetector' in window;
+            setHasNativeSupport(hasSupport);
+            
+            if (!hasSupport) {
+                setStatusMessage("Tap screen to simulate scan (Demo Mode)");
+            }
+
             try {
-                // Check Capacitor Permissions first
-                if (Capacitor.isNativePlatform()) {
-                    const permissions = await Camera.checkPermissions();
-                    if (permissions.camera !== 'granted') {
-                        const permissionRequest = await Camera.requestPermissions({ permissions: ['camera'] });
-                        if (permissionRequest.camera !== 'granted') {
-                            setScanStatus('PERMISSION_DENIED');
-                            setStatusMessage("Camera permission is required");
-                            return;
-                        }
-                    }
-                }
+                stopCamera(); // Ensure clean slate
 
-                // Request camera with preference for back camera and high resolution
-                stream = await navigator.mediaDevices.getUserMedia({
+                // Get stream
+                const stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
                       facingMode: 'environment',
                       width: { ideal: 1920 },
@@ -86,6 +115,8 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                     } as any
                 });
                 
+                streamRef.current = stream;
+
                 if (videoRef.current) {
                     videoRef.current.srcObject = stream;
                     videoRef.current.onloadedmetadata = () => {
@@ -96,23 +127,22 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                 const videoTrack = stream.getVideoTracks()[0];
                 setTrack(videoTrack);
 
-                // Get Capabilities for Zoom/Torch
+                // Get Capabilities
                 const caps = videoTrack.getCapabilities() as any;
                 setCapabilities(caps);
                 if (caps.zoom) {
                     setZoom(caps.zoom.min || 1);
                 }
 
-                // Initialize Barcode Detector
+                // Initialize Detector
                 if (hasSupport) {
                     try {
                         detector = new (window as any).BarcodeDetector({
                             formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'qr_code', 'code_128', 'code_39', 'itf']
                         });
                     } catch (e) {
-                        console.warn("BarcodeDetector initialization failed", e);
+                        console.warn("BarcodeDetector init failed", e);
                         setHasNativeSupport(false);
-                        setStatusMessage("Tap screen to simulate scan");
                     }
 
                     if (detector) {
@@ -130,37 +160,35 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                         }, 100); 
                     }
                 }
-
             } catch (err: any) {
-                console.error("Camera Init Error:", err);
-                if (err.name === 'NotAllowedError' || err.message?.includes('Permission denied')) {
-                     setScanStatus('PERMISSION_DENIED');
-                     setStatusMessage("Camera permission denied");
-                } else {
-                     setScanStatus('ERROR');
-                     setStatusMessage("Camera access failed");
-                }
+                console.error("Camera Start Error:", err);
+                setScanStatus('ERROR');
+                setStatusMessage("Failed to access camera");
             }
         };
 
-        if (scanStatus === 'SEARCHING' || scanStatus === 'ERROR') {
-             initCamera();
-        }
+        startCamera();
 
         return () => {
             if (intervalId) clearInterval(intervalId);
-            if (stream) stream.getTracks().forEach(t => t.stop());
         };
     }, [scanStatus]);
+
+    const stopCamera = () => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(t => t.stop());
+            streamRef.current = null;
+        }
+    };
 
     const handleSuccess = (code: string) => {
         if (scanStatus === 'DETECTED') return;
         
         setScanStatus('DETECTED');
-        setFlash(true); // Visual flash
-        playScanSound(); // Audio feedback
+        setFlash(true);
+        playScanSound();
         
-        if (navigator.vibrate) navigator.vibrate([50, 50, 50]); // Haptic feedback
+        if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
         
         const existing = products.find(p => p.barcode === code);
         setStatusMessage(existing ? `Found: ${existing.name}` : `Scanned: ${code}`);
@@ -174,11 +202,24 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                 onClose();
             }, 1200);
         } else {
-            // In continuous mode, reset after 2 seconds
             setTimeout(() => {
                 setScanStatus('SEARCHING');
                 setStatusMessage("Ready for next item...");
             }, 2000);
+        }
+    };
+
+    const handleGrantPermission = async () => {
+        try {
+            const result = await Camera.requestPermissions({ permissions: ['camera'] });
+            if (result.camera === 'granted') {
+                setScanStatus('SEARCHING');
+            } else {
+                setScanStatus('PERMISSION_DENIED');
+            }
+        } catch (e) {
+            console.error("Permission request error", e);
+            setScanStatus('ERROR');
         }
     };
 
@@ -213,60 +254,84 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
             }
         }
     };
-    
-    const handleRequestPermission = async () => {
-        try {
-            await Camera.requestPermissions({ permissions: ['camera'] });
-            setScanStatus('SEARCHING'); // Retry
-        } catch (e) {
-            // If native request fails, user might need to go to settings manually
-        }
-    };
 
     return (
         <div className="fixed inset-0 bg-black z-[60] flex flex-col" onClick={handleSimulatedClick}>
             
-            {/* Camera View */}
-            <div className="relative flex-1 bg-black overflow-hidden">
-                {scanStatus === 'PERMISSION_DENIED' ? (
-                     <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+            {/* Main Content Area */}
+            <div className="relative flex-1 bg-black overflow-hidden flex flex-col justify-center">
+                
+                {/* 1. Permission Prompt State */}
+                {scanStatus === 'PERMISSION_PROMPT' && (
+                     <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-30 bg-[#1A2F1A]">
+                         <div className="bg-white/10 p-6 rounded-full mb-6 animate-pulse">
+                            <CameraIcon size={48} className="text-white" />
+                         </div>
+                         <h3 className="text-white font-bold text-xl mb-2">Camera Access Required</h3>
+                         <p className="text-white/70 mb-8 max-w-xs leading-relaxed">
+                             MossypinePOS needs access to your camera to scan barcodes and products.
+                         </p>
+                         <button 
+                            onClick={handleGrantPermission}
+                            className="bg-[#4A6741] text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-2 hover:bg-[#3A5232] transition-colors shadow-lg active:scale-95"
+                         >
+                            Allow Camera
+                         </button>
+                         <button 
+                            onClick={onClose}
+                            className="mt-6 text-white/50 text-sm font-medium hover:text-white"
+                         >
+                            Cancel
+                         </button>
+                     </div>
+                )}
+
+                {/* 2. Permission Denied State */}
+                {scanStatus === 'PERMISSION_DENIED' && (
+                     <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-30 bg-[#1A2F1A]">
                          <div className="bg-red-500/10 p-6 rounded-full mb-6">
                             <AlertTriangle size={48} className="text-red-500" />
                          </div>
-                         <h3 className="text-white font-bold text-xl mb-2">Camera Access Needed</h3>
-                         <p className="text-white/60 mb-8 max-w-xs">We need camera access to scan barcodes. Please allow access in your settings.</p>
+                         <h3 className="text-white font-bold text-xl mb-2">Access Denied</h3>
+                         <p className="text-white/60 mb-8 max-w-xs">
+                             Camera permission was denied. Please enable it in your device settings to use the scanner.
+                         </p>
                          <button 
-                            onClick={handleRequestPermission}
-                            className="bg-[#4A6741] text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-[#3A5232] transition-colors"
+                            onClick={handleGrantPermission}
+                            className="bg-white/10 text-white border border-white/20 px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-white/20 transition-colors"
                          >
                             <Settings size={18} />
-                            Allow Camera
+                            Open Settings
+                         </button>
+                         <button 
+                            onClick={onClose}
+                            className="mt-6 text-white/50 text-sm font-medium hover:text-white"
+                         >
+                            Close Scanner
                          </button>
                      </div>
-                ) : (
+                )}
+
+                {/* 3. Active Scanning State */}
+                {(scanStatus === 'SEARCHING' || scanStatus === 'DETECTED') && (
                     <>
                         <video 
-                        ref={videoRef} 
-                        muted 
-                        playsInline 
-                        className="absolute inset-0 w-full h-full object-cover" 
+                            ref={videoRef} 
+                            muted 
+                            playsInline 
+                            className="absolute inset-0 w-full h-full object-cover" 
                         />
                         
-                        {/* Visual Flash Overlay */}
                         <div className={`absolute inset-0 bg-white pointer-events-none transition-opacity duration-300 ${flash ? 'opacity-80' : 'opacity-0'}`} />
 
-                        {/* Dark Backdrop with Cutout Effect */}
                         <div className="absolute inset-0 pointer-events-none">
                             <div className="absolute inset-0 bg-black/50">
-                                {/* The Cutout - Centered */}
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-56 bg-transparent shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] rounded-3xl overflow-hidden">
-                                    {/* Corner Markers */}
                                     <div className={`absolute top-0 left-0 w-8 h-8 border-t-[6px] border-l-[6px] rounded-tl-xl -mt-1 -ml-1 transition-colors ${scanStatus === 'DETECTED' ? 'border-emerald-500' : 'border-white'}`}></div>
                                     <div className={`absolute top-0 right-0 w-8 h-8 border-t-[6px] border-r-[6px] rounded-tr-xl -mt-1 -mr-1 transition-colors ${scanStatus === 'DETECTED' ? 'border-emerald-500' : 'border-white'}`}></div>
                                     <div className={`absolute bottom-0 left-0 w-8 h-8 border-b-[6px] border-l-[6px] rounded-bl-xl -mb-1 -ml-1 transition-colors ${scanStatus === 'DETECTED' ? 'border-emerald-500' : 'border-white'}`}></div>
                                     <div className={`absolute bottom-0 right-0 w-8 h-8 border-b-[6px] border-r-[6px] rounded-br-xl -mb-1 -mr-1 transition-colors ${scanStatus === 'DETECTED' ? 'border-emerald-500' : 'border-white'}`}></div>
 
-                                    {/* Laser Animation */}
                                     {scanStatus === 'SEARCHING' && (
                                         <div 
                                             className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent shadow-[0_0_15px_rgba(239,68,68,0.8)]"
@@ -274,7 +339,6 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                                         ></div>
                                     )}
 
-                                    {/* Success Indicator */}
                                     {scanStatus === 'DETECTED' && (
                                         <div className="absolute inset-0 flex items-center justify-center animate-in zoom-in duration-300 bg-black/20 backdrop-blur-sm">
                                             <div className="bg-emerald-500 text-white p-4 rounded-full shadow-lg">
@@ -288,67 +352,66 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                     </>
                 )}
                 
-                {/* Header Controls */}
-                <div className="absolute top-0 left-0 right-0 p-4 pt-10 flex justify-between items-center z-20 bg-gradient-to-b from-black/80 to-transparent">
-                    <div className="flex items-center gap-2 text-white/90">
-                       <Scan size={20} className="text-[#4A6741]" />
-                       <span className="font-bold text-lg tracking-wide">Scan Barcode</span>
+                {/* Header Controls (Always visible unless permission denied/prompt) */}
+                {(scanStatus === 'SEARCHING' || scanStatus === 'DETECTED') && (
+                    <div className="absolute top-0 left-0 right-0 p-4 pt-10 flex justify-between items-center z-20 bg-gradient-to-b from-black/80 to-transparent">
+                        <div className="flex items-center gap-2 text-white/90">
+                           <Scan size={20} className="text-[#4A6741]" />
+                           <span className="font-bold text-lg tracking-wide">Scan Barcode</span>
+                        </div>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); onClose(); }} 
+                          className="bg-black/30 hover:bg-black/50 border border-white/20 p-2.5 rounded-full text-white backdrop-blur-md transition-all active:scale-95"
+                        >
+                          <X size={24}/>
+                        </button>
                     </div>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); onClose(); }} 
-                      className="bg-black/30 hover:bg-black/50 border border-white/20 p-2.5 rounded-full text-white backdrop-blur-md transition-all active:scale-95"
-                    >
-                      <X size={24}/>
-                    </button>
-                </div>
+                )}
                 
                 {/* Footer Controls */}
-                <div className="absolute bottom-0 left-0 right-0 pb-10 pt-20 px-6 flex flex-col items-center gap-6 z-20 bg-gradient-to-t from-black/90 to-transparent pointer-events-none">
-                    
-                    {/* Status Pill */}
-                    <div className={`px-6 py-2.5 rounded-full backdrop-blur-xl border font-medium text-sm shadow-lg transition-colors ${
-                        scanStatus === 'ERROR' || scanStatus === 'PERMISSION_DENIED'
-                            ? 'bg-red-500/20 border-red-500/50 text-red-200' 
-                            : scanStatus === 'DETECTED' 
+                {(scanStatus === 'SEARCHING' || scanStatus === 'DETECTED') && (
+                    <div className="absolute bottom-0 left-0 right-0 pb-10 pt-20 px-6 flex flex-col items-center gap-6 z-20 bg-gradient-to-t from-black/90 to-transparent pointer-events-none">
+                        
+                        <div className={`px-6 py-2.5 rounded-full backdrop-blur-xl border font-medium text-sm shadow-lg transition-colors ${
+                            scanStatus === 'DETECTED' 
                                 ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-200' 
                                 : 'bg-white/10 border-white/10 text-white'
-                    }`}>
-                        {statusMessage}
-                    </div>
+                        }`}>
+                            {statusMessage}
+                        </div>
 
-                    <div className="flex items-center gap-4 pointer-events-auto">
-                        {/* Zoom Control */}
-                        {capabilities?.zoom && scanStatus !== 'PERMISSION_DENIED' && (
-                            <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
-                                <ZoomOut size={16} className="text-white/70" />
-                                <input 
-                                type="range" 
-                                min={capabilities.zoom.min} 
-                                max={capabilities.zoom.max} 
-                                step={0.1}
-                                value={zoom}
-                                onChange={handleZoom}
-                                className="w-24 h-1 bg-white/30 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
-                                />
-                                <ZoomIn size={16} className="text-white/70" />
-                            </div>
-                        )}
+                        <div className="flex items-center gap-4 pointer-events-auto">
+                            {capabilities?.zoom && (
+                                <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+                                    <ZoomOut size={16} className="text-white/70" />
+                                    <input 
+                                    type="range" 
+                                    min={capabilities.zoom.min} 
+                                    max={capabilities.zoom.max} 
+                                    step={0.1}
+                                    value={zoom}
+                                    onChange={handleZoom}
+                                    className="w-24 h-1 bg-white/30 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
+                                    />
+                                    <ZoomIn size={16} className="text-white/70" />
+                                </div>
+                            )}
 
-                        {/* Torch Button */}
-                        {capabilities?.torch && scanStatus !== 'PERMISSION_DENIED' && (
-                            <button 
-                                onClick={toggleTorch}
-                                className={`p-3 rounded-full transition-all border backdrop-blur-md ${
-                                    torchOn 
-                                    ? 'bg-yellow-400/20 border-yellow-400 text-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.3)]' 
-                                    : 'bg-white/10 border-white/20 text-white hover:bg-white/20'
-                                }`}
-                            >
-                                {torchOn ? <ZapOff size={24} /> : <Zap size={24} />}
-                            </button>
-                        )}
+                            {capabilities?.torch && (
+                                <button 
+                                    onClick={toggleTorch}
+                                    className={`p-3 rounded-full transition-all border backdrop-blur-md ${
+                                        torchOn 
+                                        ? 'bg-yellow-400/20 border-yellow-400 text-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.3)]' 
+                                        : 'bg-white/10 border-white/20 text-white hover:bg-white/20'
+                                    }`}
+                                >
+                                    {torchOn ? <ZapOff size={24} /> : <Zap size={24} />}
+                                </button>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );

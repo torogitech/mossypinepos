@@ -65,21 +65,21 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
                     <label className="block text-xs font-bold text-[#7A8C7A] uppercase mb-2">Full Name</label>
                     <div className="relative">
                         <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-[#B0C4B0]" size={18} />
-                        <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full pl-12 p-4 bg-[#F2F5F1] rounded-2xl text-[#1A2F1A] font-bold focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50" />
+                        <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full pl-12 p-4 bg-[#F2F5F1] rounded-2xl text-[#1A2F1A] font-bold focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 uppercase" />
                     </div>
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-[#7A8C7A] uppercase mb-2">Email Address</label>
                     <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#B0C4B0]" size={18} />
-                        <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full pl-12 p-4 bg-[#F2F5F1] rounded-2xl text-[#1A2F1A] font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50" />
+                        <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full pl-12 p-4 bg-[#F2F5F1] rounded-2xl text-[#1A2F1A] font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 uppercase" />
                     </div>
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-[#7A8C7A] uppercase mb-2">Phone Number</label>
                     <div className="relative">
                         <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-[#B0C4B0]" size={18} />
-                        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full pl-12 p-4 bg-[#F2F5F1] rounded-2xl text-[#1A2F1A] font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50" />
+                        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full pl-12 p-4 bg-[#F2F5F1] rounded-2xl text-[#1A2F1A] font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 uppercase" />
                     </div>
                 </div>
             </div>

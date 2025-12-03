@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { User } from '../types';
 import { Button } from './ui/Button';
@@ -57,7 +58,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLogin }) => {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all"
+              className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all uppercase"
               placeholder="name@mossypine.com"
             />
           </div>
@@ -123,10 +124,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLogin }) => {
               </button>
             ))}
           </div>
-        </div>
-
-        <div className="mt-8 text-center">
-           <p className="text-xs text-[#7A8C7A]">Having trouble? <a href="#" className="text-[#4A6741] font-bold hover:underline">Contact Support</a></p>
         </div>
       </div>
     </div>

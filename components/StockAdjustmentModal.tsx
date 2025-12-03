@@ -114,7 +114,7 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOp
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               placeholder="0"
-              className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-bold text-lg placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all"
+              className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-bold text-lg placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all uppercase"
               autoFocus
             />
           </div>
@@ -129,7 +129,7 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOp
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder={mode === 'ADD' ? "e.g., Delivery received" : "e.g., Spoilage, Damage, Internal Use"}
-              className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all"
+              className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all uppercase"
             />
           </div>
 

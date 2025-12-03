@@ -149,7 +149,7 @@ export const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onRemove, o
                             value={discountValue}
                             onChange={(e) => setDiscountValue(e.target.value)}
                             placeholder="Discount"
-                            className="w-full pl-3 pr-3 py-2 bg-[#F2F5F1] rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 text-[#1A2F1A]"
+                            className="w-full pl-3 pr-3 py-2 bg-[#F2F5F1] rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 text-[#1A2F1A] uppercase"
                         />
                      </div>
                      <div className="flex bg-[#F2F5F1] rounded-xl p-1">
@@ -196,7 +196,7 @@ export const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onRemove, o
                             value={paidAmount}
                             onChange={(e) => setPaidAmount(e.target.value)}
                             placeholder="Amount Paid"
-                            className="w-full pl-10 pr-3 py-3 bg-[#F2F5F1] rounded-xl text-[#1A2F1A] font-bold focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50"
+                            className="w-full pl-10 pr-3 py-3 bg-[#F2F5F1] rounded-xl text-[#1A2F1A] font-bold focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 uppercase"
                         />
                          {paid > 0 && change >= 0 && (
                             <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#4A6741] bg-[#E8F5E9] px-2 py-1 rounded-lg">

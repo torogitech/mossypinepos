@@ -58,7 +58,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ onSave, onClos
                      step="0.01"
                      value={amount}
                      onChange={(e) => setAmount(e.target.value)}
-                     className="w-full pl-12 p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-black text-lg placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all"
+                     className="w-full pl-12 p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-black text-lg placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all uppercase"
                      placeholder="0.00"
                      autoFocus
                    />
@@ -75,7 +75,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ onSave, onClos
                     required
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full pl-12 p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all"
+                    className="w-full pl-12 p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all uppercase"
                     placeholder="e.g., Staff Meriendas"
                   />
               </div>
@@ -89,7 +89,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ onSave, onClos
                     <select 
                         value={category}
                         onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
-                        className="w-full pl-12 p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all appearance-none"
+                        className="w-full pl-12 p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all appearance-none uppercase"
                     >
                         {categories.map(c => (
                             <option key={c} value={c}>{c}</option>
@@ -109,7 +109,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ onSave, onClos
               <textarea 
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all h-24 resize-none"
+                className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all h-24 resize-none uppercase"
                 placeholder="Additional details..."
               />
             </div>
