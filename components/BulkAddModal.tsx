@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Category, Product } from '../types';
 import { Button } from './ui/Button';
-import { X, Upload, AlertCircle } from 'lucide-react';
+import { X, Upload, AlertCircle, FileDown } from 'lucide-react';
 
 interface BulkAddModalProps {
   onSave: (products: Product[]) => void;
@@ -16,6 +16,18 @@ export const BulkAddModal: React.FC<BulkAddModalProps> = ({ onSave, onClose, cat
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<'INPUT' | 'PREVIEW'>('INPUT');
 
+  const handleDownloadTemplate = () => {
+      const headers = ['Name', 'Price', 'Category', 'Stock', 'Cost', 'Barcode', 'Description'];
+      const blob = new Blob([headers.join(',')], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'inventory_template.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  };
+
   const parseCSV = (text: string) => {
     try {
       const lines = text.trim().split('\n');
@@ -23,13 +35,25 @@ export const BulkAddModal: React.FC<BulkAddModalProps> = ({ onSave, onClose, cat
       
       lines.forEach((line, index) => {
         if (!line.trim()) return;
-        const parts = line.split(',').map(p => p.trim());
+        
+        // Simple CSV splitter that handles basic commas (doesn't handle quoted commas perfectly, but sufficient for simple import)
+        // For robust CSV parsing, a library is usually recommended, but sticking to zero-dep:
+        const parts = line.split(',').map(p => p.trim().replace(/^"|"$/g, ''));
+        
+        // Skip header row if it looks like a header
+        if (index === 0 && parts[0].toLowerCase() === 'name') return;
+
         // Expect at least Name and Price
         if (parts.length < 2) return; 
 
-        const [name, priceStr, categoryStr, stockStr] = parts;
-        const price = parseFloat(priceStr);
-        let stock = parseInt(stockStr);
+        // Mapping: Name, Price, Category, Stock, Cost, Barcode, Description
+        const name = parts[0];
+        const price = parseFloat(parts[1]);
+        let categoryStr = parts[2] || '';
+        let stock = parseInt(parts[3]);
+        const costPrice = parseFloat(parts[4]);
+        const barcode = parts[5] || '';
+        const description = parts[6] || '';
         
         if (!name || isNaN(price)) return;
         if (isNaN(stock)) stock = 0;
@@ -47,16 +71,17 @@ export const BulkAddModal: React.FC<BulkAddModalProps> = ({ onSave, onClose, cat
           id: `bulk-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 5)}`,
           name,
           price,
-          costPrice: price * 0.6, // Default cost estimate
+          costPrice: !isNaN(costPrice) ? costPrice : price * 0.6, // Use provided cost or default
           category,
           stock,
-          description: '',
+          description: description,
+          barcode: barcode,
           image: `https://picsum.photos/seed/${name.replace(/[^a-zA-Z0-9]/g, '')}/200/200`
         });
       });
 
       if (parsed.length === 0) {
-        setError('Could not parse any valid products. Please use format: Name, Price, Category, Stock');
+        setError('Could not parse any valid products. Please check format.');
         return;
       }
 
@@ -87,8 +112,8 @@ export const BulkAddModal: React.FC<BulkAddModalProps> = ({ onSave, onClose, cat
         
         <div className="p-5 border-b border-[#F2F5F1] flex justify-between items-center bg-white shrink-0">
           <div>
-            <h3 className="font-bold text-xl text-[#1A2F1A]">Bulk Add Items</h3>
-            <p className="text-xs text-[#7A8C7A]">Import multiple products</p>
+            <h3 className="font-bold text-xl text-[#1A2F1A]">Bulk Import Items</h3>
+            <p className="text-xs text-[#7A8C7A]">Import multiple products via CSV</p>
           </div>
           <button onClick={onClose} className="text-[#7A8C7A] hover:text-[#1A2F1A] bg-[#F2F5F1] p-2 rounded-full transition-colors">
             <X size={20} />
@@ -99,13 +124,21 @@ export const BulkAddModal: React.FC<BulkAddModalProps> = ({ onSave, onClose, cat
             {step === 'INPUT' ? (
                 <div className="space-y-4">
                     <div className="bg-[#E8F5E9] p-4 rounded-2xl border border-[#DCE7D9]">
-                        <h4 className="font-bold text-[#4A6741] text-sm mb-1 flex items-center gap-2">
-                            <AlertCircle size={16} /> CSV Format Guide
-                        </h4>
-                        <p className="text-xs text-[#1A2F1A]">Name, Price, Category, Stock</p>
-                        <code className="block mt-2 bg-white p-2 rounded border border-[#DCE7D9] text-[10px] text-[#7A8C7A] font-mono">
-                            Caramel Latte, 140, Coffee, 50<br/>
-                            Blueberry Bagel, 85, Bakery, 20
+                        <div className="flex justify-between items-start mb-2">
+                            <h4 className="font-bold text-[#4A6741] text-sm flex items-center gap-2">
+                                <AlertCircle size={16} /> CSV Format Guide
+                            </h4>
+                            <button 
+                                onClick={handleDownloadTemplate}
+                                className="text-[10px] bg-white text-[#4A6741] px-2 py-1 rounded-lg font-bold border border-[#DCE7D9] hover:bg-[#4A6741] hover:text-white transition-colors flex items-center gap-1"
+                            >
+                                <FileDown size={12} /> Download Template
+                            </button>
+                        </div>
+                        <p className="text-xs text-[#1A2F1A] mb-2">Order: Name, Price, Category, Stock, Cost, Barcode, Description</p>
+                        <code className="block bg-white p-2 rounded border border-[#DCE7D9] text-[10px] text-[#7A8C7A] font-mono whitespace-pre-wrap">
+                            Caramel Latte, 140, Coffee, 50, 60, 1001, Delicious hot coffee<br/>
+                            Blueberry Bagel, 85, Bakery, 20, 30, 1002, Freshly baked
                         </code>
                     </div>
 
@@ -149,6 +182,7 @@ export const BulkAddModal: React.FC<BulkAddModalProps> = ({ onSave, onClose, cat
                                 <tr>
                                     <th className="p-3">Name</th>
                                     <th className="p-3">Price</th>
+                                    <th className="p-3">Cost</th>
                                     <th className="p-3">Category</th>
                                     <th className="p-3">Stock</th>
                                 </tr>
@@ -158,6 +192,7 @@ export const BulkAddModal: React.FC<BulkAddModalProps> = ({ onSave, onClose, cat
                                     <tr key={item.id}>
                                         <td className="p-3 font-medium">{item.name}</td>
                                         <td className="p-3">₱{item.price.toFixed(2)}</td>
+                                        <td className="p-3 text-[#7A8C7A]">₱{item.costPrice.toFixed(2)}</td>
                                         <td className="p-3 text-[#7A8C7A]">{item.category}</td>
                                         <td className="p-3">{item.stock}</td>
                                     </tr>

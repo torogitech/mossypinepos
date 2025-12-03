@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Category, Product } from '../types';
 import { Button } from './ui/Button';
-import { X, Sparkles, Image as ImageIcon, Upload, AlertCircle, Scan, Wand2 } from 'lucide-react';
+import { X, Sparkles, Image as ImageIcon, Upload, AlertCircle, Scan, Wand2, Camera } from 'lucide-react';
 import { generateProductDescription, generateProductDetails } from '../services/geminiService';
 import { Scanner } from './Scanner';
+import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 
 interface InventoryFormProps {
   onSave: (product: Product) => void;
@@ -99,6 +100,29 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
     const file = e.target.files?.[0];
     if (file) {
       processFile(file);
+    }
+  };
+
+  const handleTakePhoto = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setError(null);
+    
+    try {
+      const image = await CapacitorCamera.getPhoto({
+        quality: 90,
+        allowEditing: true,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Camera,
+        width: 800 // Optimize size
+      });
+
+      if (image.dataUrl) {
+        setImagePreview(image.dataUrl);
+      }
+    } catch (error) {
+      console.log('Camera cancelled or failed', error);
+      // We don't necessarily need to set an error if the user just cancelled
     }
   };
 
@@ -221,8 +245,8 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
             <div>
                 <label className="block text-xs font-bold text-[#4A6741] uppercase tracking-wider mb-2">Product Image</label>
                 <div 
-                  className={`relative w-full h-40 rounded-2xl border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center cursor-pointer overflow-hidden group ${
-                    error && !imagePreview && !isEditing // Highlight if error related to image (simplified logic)
+                  className={`relative w-full h-40 rounded-2xl border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center overflow-hidden group ${
+                    error && !imagePreview && !isEditing 
                       ? 'border-red-300 bg-red-50'
                       : isDragging 
                         ? 'border-[#4A6741] bg-[#E8F5E9] scale-[1.02]' 
@@ -233,6 +257,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                 >
+                  {/* File Input */}
                   <input 
                     type="file" 
                     accept="image/*"
@@ -243,7 +268,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                   {imagePreview ? (
                     <div className="relative w-full h-full group-hover:opacity-90 transition-opacity">
                          <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-medium text-xs">
+                         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-medium text-xs pointer-events-none">
                              Change Image
                          </div>
                     </div>
@@ -266,6 +291,17 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                       </span>
                     </div>
                   )}
+
+                   {/* Camera Button (Floating on empty state or overlay on top of preview) */}
+                   <button 
+                     type="button"
+                     onClick={handleTakePhoto}
+                     className="absolute bottom-3 right-3 z-20 bg-[#1A2F1A] text-white p-2.5 rounded-full shadow-lg hover:bg-[#4A6741] transition-all hover:scale-110 active:scale-95 flex items-center gap-1"
+                     title="Take Photo"
+                   >
+                      <Camera size={16} />
+                      {!imagePreview && <span className="text-xs font-bold pr-1">Camera</span>}
+                   </button>
 
                    {imagePreview && (
                       <button 

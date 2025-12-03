@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { X, Globe, Database, Lock, RefreshCw, Trash2, Info, ChevronRight, ArrowLeft } from 'lucide-react';
-import { User } from '../types';
+import { X, Globe, Database, Lock, RefreshCw, Trash2, Info, ChevronRight, ArrowLeft, Download, Upload, Facebook, Mail, Phone } from 'lucide-react';
+import { User, Product } from '../types';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -15,6 +15,8 @@ interface SettingsModalProps {
   onToggleDailySalesReport: (enabled: boolean) => void;
   onResetData: () => void;
   onClearInventory: () => void;
+  products?: Product[];
+  onOpenImport?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -28,7 +30,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   dailySalesReportEnabled,
   onToggleDailySalesReport,
   onResetData,
-  onClearInventory
+  onClearInventory,
+  products = [],
+  onOpenImport
 }) => {
   const [currentView, setCurrentView] = useState<'MAIN' | 'ABOUT'>('MAIN');
 
@@ -73,6 +77,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       </div>
   );
 
+  const handleExportCSV = () => {
+      const headers = ['Name', 'Price', 'Category', 'Stock', 'Cost', 'Barcode', 'Description'];
+      const csvContent = [
+          headers.join(','),
+          ...products.map(p => {
+              // Escape quotes and wrap in quotes if necessary
+              const escape = (str: string) => `"${(str || '').toString().replace(/"/g, '""')}"`;
+              return [
+                  escape(p.name),
+                  p.price,
+                  escape(p.category),
+                  p.stock,
+                  p.costPrice,
+                  escape(p.barcode || ''),
+                  escape(p.description || '')
+              ].join(',');
+          })
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `inventory_export_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  };
+
   const isOwner = currentUser?.role === 'OWNER';
 
   return (
@@ -116,11 +149,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             locked={!isOwner}
                         />
                         <div className="p-4 space-y-3 border-t border-[#F2F5F1]">
+                            <div className="grid grid-cols-2 gap-3 mb-4">
+                                <button 
+                                    onClick={handleExportCSV}
+                                    className="text-xs font-bold text-[#4A6741] bg-[#F2F5F1] hover:bg-[#E8EFE6] px-3 py-3 rounded-xl transition-colors flex flex-col items-center justify-center gap-2"
+                                >
+                                    <Download size={18} /> Export Inventory
+                                </button>
+                                <button 
+                                    onClick={onOpenImport}
+                                    className="text-xs font-bold text-[#1A2F1A] bg-[#F2F5F1] hover:bg-[#E8EFE6] px-3 py-3 rounded-xl transition-colors flex flex-col items-center justify-center gap-2"
+                                >
+                                    <Upload size={18} /> Import Inventory
+                                </button>
+                            </div>
+
                             <button 
                                 onClick={onClearInventory}
                                 className="text-xs font-bold text-amber-600 hover:bg-amber-50 px-4 py-2 rounded-xl transition-colors flex items-center justify-center gap-2 w-full"
                             >
-                                <Trash2 size={14} /> Clear Inventory Data
+                                <Trash2 size={14} /> Clear Business Data
                             </button>
 
                             <button 
@@ -164,9 +212,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         </p>
                     </div>
 
-                    <div className="pt-8 border-t border-[#F2F5F1] w-full">
-                         <p className="text-xs font-bold text-[#7A8C7A] uppercase tracking-wider mb-2">Developed By</p>
-                         <p className="text-sm font-bold text-[#1A2F1A]">Jason E.</p>
+                    <div className="pt-8 border-t border-[#F2F5F1] w-full space-y-6">
+                         <div>
+                             <p className="text-xs font-bold text-[#7A8C7A] uppercase tracking-wider mb-3">Social Media</p>
+                             <div className="flex items-center justify-center gap-6">
+                                <a 
+                                    href="https://www.facebook.com/mossypinedesigns" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="h-12 w-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center hover:bg-blue-100 hover:scale-110 transition-all shadow-sm"
+                                >
+                                    <Facebook size={24} />
+                                </a>
+                                <a 
+                                    href="https://mossypine.net/" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="h-12 w-12 bg-[#E8F5E9] text-[#4A6741] rounded-2xl flex items-center justify-center hover:bg-[#DCE7D9] hover:scale-110 transition-all shadow-sm"
+                                >
+                                    <Globe size={24} />
+                                </a>
+                             </div>
+                         </div>
+                         
+                         <div>
+                             <p className="text-xs font-bold text-[#7A8C7A] uppercase tracking-wider mb-3">Contact Us</p>
+                             <div className="flex flex-col items-center gap-3">
+                                 <a href="mailto:pinecone@mossypine.net" className="flex items-center gap-2 text-sm font-bold text-[#1A2F1A] hover:text-[#4A6741] transition-colors bg-[#F2F5F1] px-4 py-2 rounded-xl w-full justify-center">
+                                     <Mail size={16} />
+                                     <span>pinecone@mossypine.net</span>
+                                 </a>
+                                 <a href="tel:+639053679743" className="flex items-center gap-2 text-sm font-bold text-[#1A2F1A] hover:text-[#4A6741] transition-colors bg-[#F2F5F1] px-4 py-2 rounded-xl w-full justify-center">
+                                     <Phone size={16} />
+                                     <span>+63 905 367 9743</span>
+                                 </a>
+                             </div>
+                         </div>
                     </div>
                 </div>
             )}

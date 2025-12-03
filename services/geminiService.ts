@@ -5,7 +5,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 export const generateProductDescription = async (productName: string, category: string): Promise<string> => {
   try {
     const model = 'gemini-2.5-flash';
-    const prompt = `Write a short, appetizing, and punchy marketing description (max 2 sentences) for a cafe product named "${productName}" in the category "${category}".`;
+    const prompt = `Write a short, appetizing, and punchy marketing description (max 1 sentences) for a  product named "${productName}" in the category "${category}".`;
     
     const response = await ai.models.generateContent({
       model: model,
@@ -22,8 +22,8 @@ export const generateProductDescription = async (productName: string, category: 
 export const generateProductDetails = async (productName: string, categories: string[]) => {
   try {
     const model = 'gemini-2.5-flash';
-    const prompt = `You are a cafe manager. Given the product name "${productName}", generate the following:
-    1. A short, appetizing description (max 2 sentences).
+    const prompt = `You are a store manager. Given the product name "${productName}", generate the following:
+    1. A short, appetizing description (max 1 sentences).
     2. The best fitting category from this list: [${categories.join(', ')}].
     3. An estimated price in PHP (Philippine Peso).
     

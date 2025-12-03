@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Category, Product, CartItem, ViewMode, Transaction, StockLog, StockAction, User, ExpenseRecord } from './types';
 import { ProductCard } from './components/ProductCard';
@@ -368,9 +369,9 @@ const App: React.FC = () => {
   const handleClearInventoryRequest = () => {
     setConfirmationState({
       isOpen: true,
-      title: 'Clear Inventory?',
-      description: 'Are you sure you want to clear all inventory data? This will permanently remove all products and stock history.',
-      confirmLabel: 'Clear Data',
+      title: 'Clear Business Data?',
+      description: 'Are you sure you want to delete all transactions, expenses, products, and logs? This gives you a fresh start but keeps user accounts.',
+      confirmLabel: 'Clear Business Data',
       variant: 'warning',
       icon: 'trash',
       onConfirm: executeClearInventory
@@ -379,12 +380,12 @@ const App: React.FC = () => {
 
   const executeClearInventory = async () => {
       try {
-          await dbService.clearInventory();
+          await dbService.clearBusinessData();
           await refreshData();
-          showNotification("Inventory cleared successfully", "success");
+          showNotification("All business data cleared", "success");
           setIsSettingsOpen(false);
       } catch (e) {
-          showNotification("Failed to clear inventory", "error");
+          showNotification("Failed to clear data", "error");
       }
   };
 
@@ -1151,6 +1152,8 @@ const App: React.FC = () => {
                     onScan={handlePosScan} 
                     products={products}
                     continuous={true}
+                    onViewOrder={() => setIsCartOpen(true)}
+                    paused={isCartOpen}
                  />
             )}
           </div>
@@ -1163,7 +1166,7 @@ const App: React.FC = () => {
         </div>
         
         {isCartOpen && (
-            <div className="fixed inset-0 z-50 lg:hidden flex flex-col justify-end sm:justify-center">
+            <div className="fixed inset-0 z-[200] lg:hidden flex flex-col justify-end sm:justify-center">
                 <div className="absolute inset-0 bg-[#1A2F1A]/60 backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />
                 <div className="bg-white w-full sm:w-[400px] sm:mx-auto h-[85vh] sm:h-[600px] rounded-t-3xl sm:rounded-3xl overflow-hidden relative shadow-2xl animate-in slide-in-from-bottom duration-300">
                     <Cart items={cart} onUpdateQuantity={updateQuantity} onRemove={removeFromCart} onCheckout={handleCheckout} onClear={clearCart} onClose={() => setIsCartOpen(false)} />
@@ -1208,6 +1211,8 @@ const App: React.FC = () => {
         onToggleDailySalesReport={setDailySalesReports} 
         onResetData={handleResetDataRequest}
         onClearInventory={handleClearInventoryRequest}
+        products={products}
+        onOpenImport={() => { setIsSettingsOpen(false); setIsBulkAddModalOpen(true); }}
       />
       <ConfirmationModal 
         isOpen={confirmationState.isOpen}

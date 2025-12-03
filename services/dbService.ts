@@ -290,14 +290,18 @@ export const dbService = {
 
   // --- Admin ---
 
-  async clearInventory() {
+  async clearBusinessData() {
       await database.write(async () => {
           const products = await database.get<Product>('products').query().fetch();
           const stockLogs = await database.get<StockLog>('stock_logs').query().fetch();
+          const transactions = await database.get<Transaction>('transactions').query().fetch();
+          const expenses = await database.get<Expense>('expenses').query().fetch();
           
           const batch = [
               ...products.map(p => p.prepareDestroyPermanently()),
-              ...stockLogs.map(l => l.prepareDestroyPermanently())
+              ...stockLogs.map(l => l.prepareDestroyPermanently()),
+              ...transactions.map(t => t.prepareDestroyPermanently()),
+              ...expenses.map(e => e.prepareDestroyPermanently())
           ];
           
           if (batch.length > 0) {
@@ -308,7 +312,6 @@ export const dbService = {
 
   async resetDatabase() {
       // Instead of unsafeResetDatabase(), we manually clear all tables
-      // This avoids "blocked by another connection" errors common with IndexedDB adapters
       await database.write(async () => {
          const products = await database.get<Product>('products').query().fetch();
          const transactions = await database.get<Transaction>('transactions').query().fetch();
