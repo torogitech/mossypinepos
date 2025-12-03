@@ -101,9 +101,6 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                 // We need to make the body and app container transparent to see the native camera behind the WebView
                 document.body.classList.add('scanner-active');
                 document.documentElement.classList.add('scanner-active');
-                // Attempt to make root transparent if it has a background
-                const appRoot = document.getElementById('root');
-                if (appRoot) appRoot.style.backgroundColor = 'transparent';
 
                 // 3. Setup Listener
                 listenerHandle = await BarcodeScanner.addListener('barcodeScanned', async (result) => {
@@ -167,8 +164,6 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
             // Restore UI opacity
             document.body.classList.remove('scanner-active');
             document.documentElement.classList.remove('scanner-active');
-            const appRoot = document.getElementById('root');
-            if (appRoot) appRoot.style.backgroundColor = '';
         };
     }, [isNative, continuous, onClose]);
 
@@ -212,14 +207,11 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                 body.scanner-active, html.scanner-active {
                     background: transparent !important; 
                 }
-                body.scanner-active #root {
+                body.scanner-active #root, body.scanner-active #app-root-container {
                     background: transparent !important;
                 }
-                /* Hide other potential opaque layers if necessary */
-                body.scanner-active .bg-white {
-                    background-color: transparent !important;
-                }
-                body.scanner-active .bg-\\[\\#F2F5F1\\] {
+                /* Hide main opaque layers when scanning */
+                body.scanner-active .bg-white, body.scanner-active .bg-[#F2F5F1] {
                     background-color: transparent !important;
                 }
             `}</style>

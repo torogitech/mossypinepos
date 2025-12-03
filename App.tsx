@@ -841,67 +841,72 @@ const App: React.FC = () => {
 
   // --- Layout Components ---
 
-  const renderSidebar = () => (
-    <aside className="hidden lg:flex flex-col w-24 bg-white border-r border-[#E8EFE6] items-center py-6 gap-6 z-30 shrink-0 h-full">
-        <div 
-          className="h-12 w-12 bg-[#1A2F1A] rounded-2xl flex items-center justify-center shadow-xl shadow-[#4A6741]/20 mb-4 shrink-0 cursor-pointer hover:scale-105 transition-transform" 
-          onClick={() => setView('HOME')}
-        >
-          <span className="text-white font-bold text-lg tracking-tighter">Mp.</span>
-        </div>
+  const renderSidebar = () => {
+    // Hide Sidebar in POS/Scanner Mode to prevent blocking camera
+    if (view === 'POS') return null;
 
-        <div className="flex flex-col gap-4 w-full px-2">
-              <NavButton 
-                active={view === 'HOME'} 
-                onClick={() => setView('HOME')} 
-                icon={<Home size={24} />} 
-                label="Home" 
-                className="w-full h-16 rounded-2xl hover:bg-[#F2F5F1]" 
-              />
-              {currentUser && !isStaff && (
+    return (
+        <aside className="hidden lg:flex flex-col w-24 bg-white border-r border-[#E8EFE6] items-center py-6 gap-6 z-30 shrink-0 h-full">
+            <div 
+            className="h-12 w-12 bg-[#1A2F1A] rounded-2xl flex items-center justify-center shadow-xl shadow-[#4A6741]/20 mb-4 shrink-0 cursor-pointer hover:scale-105 transition-transform" 
+            onClick={() => setView('HOME')}
+            >
+            <span className="text-white font-bold text-lg tracking-tighter">Mp.</span>
+            </div>
+
+            <div className="flex flex-col gap-4 w-full px-2">
                 <NavButton 
-                  active={view === 'INVENTORY'} 
-                  onClick={() => setView('INVENTORY')} 
-                  icon={<Package size={24} />} 
-                  label="Stock" 
-                  className="w-full h-16 rounded-2xl hover:bg-[#F2F5F1]" 
-              />
-              )}
-              {currentUser && !isStaff && (
-                <NavButton 
-                  active={['OVERVIEW', 'TRANSACTIONS', 'EXPENSES', 'REPORTS'].includes(view)} 
-                  onClick={() => setView('OVERVIEW')} 
-                  icon={<PieChart size={24} />} 
-                  label="Stats" 
-                  className="w-full h-16 rounded-2xl hover:bg-[#F2F5F1]" 
+                    active={view === 'HOME'} 
+                    onClick={() => setView('HOME')} 
+                    icon={<Home size={24} />} 
+                    label="Home" 
+                    className="w-full h-16 rounded-2xl hover:bg-[#F2F5F1]" 
                 />
-              )}
-        </div>
+                {currentUser && !isStaff && (
+                    <NavButton 
+                    active={view === 'INVENTORY'} 
+                    onClick={() => setView('INVENTORY')} 
+                    icon={<Package size={24} />} 
+                    label="Stock" 
+                    className="w-full h-16 rounded-2xl hover:bg-[#F2F5F1]" 
+                />
+                )}
+                {currentUser && !isStaff && (
+                    <NavButton 
+                    active={['OVERVIEW', 'TRANSACTIONS', 'EXPENSES', 'REPORTS'].includes(view)} 
+                    onClick={() => setView('OVERVIEW')} 
+                    icon={<PieChart size={24} />} 
+                    label="Stats" 
+                    className="w-full h-16 rounded-2xl hover:bg-[#F2F5F1]" 
+                    />
+                )}
+            </div>
 
-        <div className="mt-auto flex flex-col gap-4 w-full px-2">
-              {currentUser && (
-                  <button
-                    onClick={() => setView('POS')}
-                    disabled={!currentUser}
-                    className={`w-full aspect-square rounded-2xl flex flex-col items-center justify-center shadow-lg transition-all gap-1 ${
-                          view === 'POS' ? 'bg-[#4A6741] text-white' : 'bg-[#1A2F1A] text-white hover:bg-[#4A6741] active:scale-95'
-                    }`}
-                    title="POS Terminal"
-                  >
-                    <Scan size={24} />
-                    <span className="text-[9px] font-bold">POS</span>
-                  </button>
-              )}
-              <NavButton 
-                active={view === 'MORE'} 
-                onClick={() => setView('MORE')} 
-                icon={<MoreHorizontal size={24} />} 
-                label={currentUser ? "More" : "Login"} 
-                className="w-full h-16 rounded-2xl hover:bg-[#F2F5F1]" 
-              />
-        </div>
-    </aside>
-  );
+            <div className="mt-auto flex flex-col gap-4 w-full px-2">
+                {currentUser && (
+                    <button
+                        onClick={() => setView('POS')}
+                        disabled={!currentUser}
+                        className={`w-full aspect-square rounded-2xl flex flex-col items-center justify-center shadow-lg transition-all gap-1 ${
+                            view === 'POS' ? 'bg-[#4A6741] text-white' : 'bg-[#1A2F1A] text-white hover:bg-[#4A6741] active:scale-95'
+                        }`}
+                        title="POS Terminal"
+                    >
+                        <Scan size={24} />
+                        <span className="text-[9px] font-bold">POS</span>
+                    </button>
+                )}
+                <NavButton 
+                    active={view === 'MORE'} 
+                    onClick={() => setView('MORE')} 
+                    icon={<MoreHorizontal size={24} />} 
+                    label={currentUser ? "More" : "Login"} 
+                    className="w-full h-16 rounded-2xl hover:bg-[#F2F5F1]" 
+                />
+            </div>
+        </aside>
+    );
+  };
 
   const renderHome = () => (
     <>
@@ -1048,11 +1053,12 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="flex h-[100dvh] w-full bg-[#F2F5F1] text-[#1A2F1A] font-sans overflow-hidden transition-all duration-300 ease-in-out">
+    <div id="app-root-container" className="flex h-[100dvh] w-full bg-[#F2F5F1] text-[#1A2F1A] font-sans overflow-hidden transition-all duration-300 ease-in-out">
       {renderSidebar()}
       
       <main className="flex-1 flex flex-col h-full relative overflow-hidden">
-        <div className={`flex-1 overflow-y-auto no-scrollbar ${view === 'POS' ? 'bg-black' : ''}`}>
+        {/* Remove bg-black from POS view as it interferes with transparency */}
+        <div className={`flex-1 overflow-y-auto no-scrollbar`}>
           <div className={`w-full max-w-[1600px] mx-auto ${view !== 'POS' ? 'px-2 md:px-6 lg:px-8' : ''}`}>
             {view === 'HOME' && renderHome()}
             {view === 'OVERVIEW' && renderOverview()}
@@ -1125,23 +1131,6 @@ const App: React.FC = () => {
                 </div>
             )}
             
-            {view === 'EXPENSES' && (
-                <div className="mb-24 lg:mb-8 mx-2 md:mx-0">
-                    <div className="sticky top-0 z-30 bg-[#F2F5F1]/95 backdrop-blur-sm pb-3 pt-[calc(0.5rem+env(safe-area-inset-top))] -mx-2 px-2 flex justify-between">
-                         <div className="flex items-center gap-3"><button onClick={() => setView('OVERVIEW')} className="bg-white p-2 rounded-full border border-[#E8EFE6]"><ArrowLeft size={20}/></button><h2 className="text-2xl font-bold">Expenses</h2></div>
-                         <button onClick={() => setIsAddExpenseModalOpen(true)} className="bg-[#1A2F1A] text-white px-4 rounded-xl text-xs font-bold flex items-center gap-2"><Plus size={16}/> Add</button>
-                    </div>
-                    <div className="space-y-3 mt-4">
-                        {manualExpenses.map(e => (
-                            <div key={e.id} className="bg-white p-4 rounded-2xl border border-[#E8EFE6] flex justify-between items-center">
-                                <div><p className="font-bold text-[#1A2F1A]">{e.title}</p><p className="text-xs text-[#7A8C7A]">{formatDateSimple(e.date)} • {e.category}</p></div>
-                                <span className="font-bold text-[#1A2F1A]">-₱{e.amount.toFixed(2)}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
             {view === 'REPORTS' && currentUser?.role === 'OWNER' && (
               <ReportsView transactions={transactions} expenses={manualExpenses} stockLogs={stockHistory} products={products} onBack={() => setView('OVERVIEW')} />
             )}
@@ -1175,20 +1164,22 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Mobile Bottom Navigation - Hidden on Desktop */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-[calc(5rem+env(safe-area-inset-bottom))] bg-white border-t border-[#F2F5F1] z-40 px-6 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.05)] pb-[env(safe-area-inset-bottom)]">
-         <div className="max-w-lg mx-auto h-20 flex items-center justify-between relative">
-            <NavButton active={view === 'HOME'} onClick={() => setView('HOME')} icon={<Home size={24} />} label="Home" />
-            {currentUser && !isStaff && <NavButton active={view === 'INVENTORY'} onClick={() => setView('INVENTORY')} icon={<Package size={24} />} label="Inventory" /> }
-            <div className="relative -top-6">
-                <button disabled={!currentUser} onClick={() => currentUser && setView('POS')} className={`h-16 w-16 rounded-full flex items-center justify-center shadow-xl transition-all ${view === 'POS' ? 'bg-[#4A6741] text-white ring-4 ring-[#DCE7D9]' : !currentUser ? 'bg-[#F2F5F1] text-[#B0C4B0] cursor-not-allowed' : 'bg-[#1A2F1A] text-white hover:bg-[#4A6741]'}`}>
-                    <Scan size={28} />
-                </button>
+      {/* Mobile Bottom Navigation - Hidden on Desktop and in POS View */}
+      {view !== 'POS' && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 h-[calc(5rem+env(safe-area-inset-bottom))] bg-white border-t border-[#F2F5F1] z-40 px-6 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.05)] pb-[env(safe-area-inset-bottom)]">
+            <div className="max-w-lg mx-auto h-20 flex items-center justify-between relative">
+                <NavButton active={view === 'HOME'} onClick={() => setView('HOME')} icon={<Home size={24} />} label="Home" />
+                {currentUser && !isStaff && <NavButton active={view === 'INVENTORY'} onClick={() => setView('INVENTORY')} icon={<Package size={24} />} label="Inventory" /> }
+                <div className="relative -top-6">
+                    <button disabled={!currentUser} onClick={() => currentUser && setView('POS')} className={`h-16 w-16 rounded-full flex items-center justify-center shadow-xl transition-all ${view === 'POS' ? 'bg-[#4A6741] text-white ring-4 ring-[#DCE7D9]' : !currentUser ? 'bg-[#F2F5F1] text-[#B0C4B0] cursor-not-allowed' : 'bg-[#1A2F1A] text-white hover:bg-[#4A6741]'}`}>
+                        <Scan size={28} />
+                    </button>
+                </div>
+                {currentUser && !isStaff && <NavButton active={['OVERVIEW', 'TRANSACTIONS', 'EXPENSES', 'REPORTS'].includes(view)} onClick={() => setView('OVERVIEW')} icon={<PieChart size={24} />} label="Overview" />}
+                <NavButton active={view === 'MORE'} onClick={() => setView('MORE')} icon={<MoreHorizontal size={24} />} label={currentUser ? "More" : "Login"} />
             </div>
-            {currentUser && !isStaff && <NavButton active={['OVERVIEW', 'TRANSACTIONS', 'EXPENSES', 'REPORTS'].includes(view)} onClick={() => setView('OVERVIEW')} icon={<PieChart size={24} />} label="Overview" />}
-            <NavButton active={view === 'MORE'} onClick={() => setView('MORE')} icon={<MoreHorizontal size={24} />} label={currentUser ? "More" : "Login"} />
-         </div>
-      </div>
+        </div>
+      )}
       
       {isInventoryModalOpen && <InventoryForm onSave={handleSaveProduct} onClose={() => { setIsInventoryModalOpen(false); setEditingProduct(null); }} initialProduct={editingProduct} categories={categories} products={products} />}
       {isBulkAddModalOpen && <BulkAddModal onSave={handleBulkAddProducts} onClose={() => setIsBulkAddModalOpen(false)} categories={categories} />}
