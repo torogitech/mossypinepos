@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Category, Product } from '../types';
 import { Button } from './ui/Button';
@@ -226,7 +227,8 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
             continuous={false}
         />
     )}
-    <div className="fixed inset-0 bg-[#1A2F1A]/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    {/* Hide the modal when scanner is active so the camera (z-index 0) can be seen through the transparent Scanner component */}
+    <div className={`fixed inset-0 bg-[#1A2F1A]/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 ${showScanner ? 'hidden' : ''}`}>
       <div className="bg-[#FDFDFD] rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-[#F2F5F1] max-h-[90vh] flex flex-col">
         
         {/* Header */}

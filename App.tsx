@@ -843,7 +843,7 @@ const App: React.FC = () => {
 
   const renderSidebar = () => {
     // Hide Sidebar in POS/Scanner Mode to prevent blocking camera
-    if (view === 'POS') return null;
+    if ((view as string) === 'POS') return null;
 
     return (
         <aside className="hidden lg:flex flex-col w-24 bg-white border-r border-[#E8EFE6] items-center py-6 gap-6 z-30 shrink-0 h-full">
@@ -888,7 +888,7 @@ const App: React.FC = () => {
                         onClick={() => setView('POS')}
                         disabled={!currentUser}
                         className={`w-full aspect-square rounded-2xl flex flex-col items-center justify-center shadow-lg transition-all gap-1 ${
-                            view === 'POS' ? 'bg-[#4A6741] text-white' : 'bg-[#1A2F1A] text-white hover:bg-[#4A6741] active:scale-95'
+                            (view as string) === 'POS' ? 'bg-[#4A6741] text-white' : 'bg-[#1A2F1A] text-white hover:bg-[#4A6741] active:scale-95'
                         }`}
                         title="POS Terminal"
                     >
@@ -1059,7 +1059,7 @@ const App: React.FC = () => {
       <main className="flex-1 flex flex-col h-full relative overflow-hidden">
         {/* Remove bg-black from POS view as it interferes with transparency */}
         <div className={`flex-1 overflow-y-auto no-scrollbar`}>
-          <div className={`w-full max-w-[1600px] mx-auto ${view !== 'POS' ? 'px-2 md:px-6 lg:px-8' : ''}`}>
+          <div className={`w-full max-w-[1600px] mx-auto ${(view as string) !== 'POS' ? 'px-2 md:px-6 lg:px-8' : ''}`}>
             {view === 'HOME' && renderHome()}
             {view === 'OVERVIEW' && renderOverview()}
             {view === 'TRANSACTIONS' && (
@@ -1135,7 +1135,7 @@ const App: React.FC = () => {
               <ReportsView transactions={transactions} expenses={manualExpenses} stockLogs={stockHistory} products={products} onBack={() => setView('OVERVIEW')} />
             )}
             
-            {view === 'POS' && (
+            {(view as string) === 'POS' && (
                  <Scanner 
                     onClose={() => setView('HOME')} 
                     onScan={handlePosScan} 
@@ -1165,13 +1165,13 @@ const App: React.FC = () => {
       </main>
 
       {/* Mobile Bottom Navigation - Hidden on Desktop and in POS View */}
-      {view !== 'POS' && (
+      {(view as string) !== 'POS' && (
         <div className="lg:hidden fixed bottom-0 left-0 right-0 h-[calc(5rem+env(safe-area-inset-bottom))] bg-white border-t border-[#F2F5F1] z-40 px-6 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.05)] pb-[env(safe-area-inset-bottom)]">
             <div className="max-w-lg mx-auto h-20 flex items-center justify-between relative">
                 <NavButton active={view === 'HOME'} onClick={() => setView('HOME')} icon={<Home size={24} />} label="Home" />
                 {currentUser && !isStaff && <NavButton active={view === 'INVENTORY'} onClick={() => setView('INVENTORY')} icon={<Package size={24} />} label="Inventory" /> }
                 <div className="relative -top-6">
-                    <button disabled={!currentUser} onClick={() => currentUser && setView('POS')} className={`h-16 w-16 rounded-full flex items-center justify-center shadow-xl transition-all ${view === 'POS' ? 'bg-[#4A6741] text-white ring-4 ring-[#DCE7D9]' : !currentUser ? 'bg-[#F2F5F1] text-[#B0C4B0] cursor-not-allowed' : 'bg-[#1A2F1A] text-white hover:bg-[#4A6741]'}`}>
+                    <button disabled={!currentUser} onClick={() => currentUser && setView('POS')} className={`h-16 w-16 rounded-full flex items-center justify-center shadow-xl transition-all ${(view as string) === 'POS' ? 'bg-[#4A6741] text-white ring-4 ring-[#DCE7D9]' : !currentUser ? 'bg-[#F2F5F1] text-[#B0C4B0] cursor-not-allowed' : 'bg-[#1A2F1A] text-white hover:bg-[#4A6741]'}`}>
                         <Scan size={28} />
                     </button>
                 </div>

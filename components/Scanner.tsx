@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Scan, Zap, ZapOff, ZoomIn, ZoomOut, AlertTriangle, Settings, ShoppingBag } from 'lucide-react';
 import { Product } from '../types';
 import { BarcodeScanner, BarcodeFormat, LensFacing } from '@capacitor-mlkit/barcode-scanning';
@@ -200,19 +201,19 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
         }
     };
 
-    // Inject styles for transparency override
-    return (
+    // Use Portal to render outside root div, allowing us to hide the entire app container
+    return createPortal(
         <div className="fixed inset-0 z-[100] flex flex-col bg-transparent">
             <style>{`
+                /* Make body transparent to see native camera layer */
                 body.scanner-active, html.scanner-active {
-                    background: transparent !important; 
-                }
-                body.scanner-active #root, body.scanner-active #app-root-container {
                     background: transparent !important;
                 }
-                /* Hide main opaque layers when scanning */
-                body.scanner-active .bg-white, body.scanner-active .bg-[#F2F5F1] {
-                    background-color: transparent !important;
+                
+                /* Hide the entire React App container while scanning */
+                /* This ensures NO HTML elements (like cards, images, modals) block the camera view */
+                body.scanner-active #app-root-container {
+                    display: none !important;
                 }
             `}</style>
 
@@ -268,21 +269,19 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                 {(scanStatus === 'SEARCHING' || scanStatus === 'DETECTED') && (
                     <>
                         <div className="absolute inset-0 pointer-events-none">
-                            <div className="absolute inset-0 bg-black/40">
-                                {/* Transparent Hole for Scanning Area */}
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-64 bg-transparent shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] rounded-3xl overflow-hidden box-content border-2 border-white/20">
-                                    {/* Corner Markers */}
-                                    <div className="absolute top-0 left-0 w-10 h-10 border-t-[6px] border-l-[6px] rounded-tl-xl -mt-1 -ml-1 border-white"></div>
-                                    <div className="absolute top-0 right-0 w-10 h-10 border-t-[6px] border-r-[6px] rounded-tr-xl -mt-1 -mr-1 border-white"></div>
-                                    <div className="absolute bottom-0 left-0 w-10 h-10 border-b-[6px] border-l-[6px] rounded-bl-xl -mb-1 -ml-1 border-white"></div>
-                                    <div className="absolute bottom-0 right-0 w-10 h-10 border-b-[6px] border-r-[6px] rounded-br-xl -mb-1 -mr-1 border-white"></div>
+                            {/* Transparent Hole for Scanning Area - Shadow provides the dimming for rest of screen */}
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-64 bg-transparent shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] rounded-3xl overflow-hidden box-content border-2 border-white/20">
+                                {/* Corner Markers */}
+                                <div className="absolute top-0 left-0 w-10 h-10 border-t-[6px] border-l-[6px] rounded-tl-xl -mt-1 -ml-1 border-white"></div>
+                                <div className="absolute top-0 right-0 w-10 h-10 border-t-[6px] border-r-[6px] rounded-tr-xl -mt-1 -mr-1 border-white"></div>
+                                <div className="absolute bottom-0 left-0 w-10 h-10 border-b-[6px] border-l-[6px] rounded-bl-xl -mb-1 -ml-1 border-white"></div>
+                                <div className="absolute bottom-0 right-0 w-10 h-10 border-b-[6px] border-r-[6px] rounded-br-xl -mb-1 -mr-1 border-white"></div>
 
-                                    {/* Scan Line Animation */}
-                                    <div 
-                                        className="absolute left-0 right-0 h-1 bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] opacity-60"
-                                        style={{ animation: 'scan 2s infinite linear' }}
-                                    ></div>
-                                </div>
+                                {/* Scan Line Animation */}
+                                <div 
+                                    className="absolute left-0 right-0 h-1 bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] opacity-60"
+                                    style={{ animation: 'scan 2s infinite linear' }}
+                                ></div>
                             </div>
                         </div>
                     </>
@@ -352,6 +351,7 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                     </div>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
