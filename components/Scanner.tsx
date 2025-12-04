@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Scan, Zap, ZapOff, ZoomIn, ZoomOut, AlertTriangle, Settings, ShoppingBag } from 'lucide-react';
+import { X, Scan, Zap, ZapOff, ZoomIn, ZoomOut, AlertTriangle, Settings, ShoppingBag, AlertCircle, Ban } from 'lucide-react';
 import { Product } from '../types';
 import { BarcodeScanner, BarcodeFormat, LensFacing } from '@capacitor-mlkit/barcode-scanning';
 import { Capacitor } from '@capacitor/core';
+import { Button } from './ui/Button';
 
 interface ScannerProps {
   onClose: () => void;
@@ -42,6 +43,12 @@ const playScanSound = () => {
   }
 };
 
+interface ScannerAlert {
+    title: string;
+    message: string;
+    type: 'warning' | 'error';
+}
+
 export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, continuous = false, onViewOrder, paused = false }) => {
     // Status State Machine: IDLE -> PERMISSION_PROMPT -> PERMISSION_DENIED -> SEARCHING -> DETECTED -> ERROR
     const [scanStatus, setScanStatus] = useState<'IDLE' | 'PERMISSION_PROMPT' | 'PERMISSION_DENIED' | 'SEARCHING' | 'DETECTED' | 'ERROR'>('IDLE');
@@ -50,6 +57,7 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
     const [zoom, setZoom] = useState(1.0);
     const [statusMessage, setStatusMessage] = useState<string>("Initializing camera...");
     const [isNative] = useState(Capacitor.isNativePlatform());
+    const [alert, setAlert] = useState<ScannerAlert | null>(null);
 
     // Refs to avoid stale closures in the event listener
     const isScanning = useRef(false);
@@ -71,6 +79,7 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
 
     useEffect(() => {
         let listenerHandle: any;
+        let isActive = true;
 
         const initializeScanner = async () => {
             if (!isNative) {
@@ -81,6 +90,13 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
             }
 
             try {
+                // CRITICAL FIX: Stop any existing scan first to clear camera surfaces
+                await BarcodeScanner.stopScan();
+                // Add a small delay to ensure native camera resources are released
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                if (!isActive) return;
+
                 // 1. Check/Request Permissions
                 const status = await BarcodeScanner.checkPermissions();
                 
@@ -105,16 +121,43 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
 
                 // 3. Setup Listener
                 listenerHandle = await BarcodeScanner.addListener('barcodeScanned', async (result) => {
-                    // Prevent scan if locked (scanning) or paused (cart open)
+                    // Prevent scan if locked (scanning), paused (cart open), or alert visible
                     if (isScanning.current || pausedRef.current) return;
                     
                     const code = result.barcode.rawValue;
-                    isScanning.current = true;
+                    isScanning.current = true; // Lock
                     
+                    // --- Validation Logic ---
+                    const existing = productsRef.current.find(p => p.barcode === code);
+
+                    // If continuous mode (POS), check inventory first
+                    if (continuous) {
+                        if (!existing) {
+                             if (navigator.vibrate) navigator.vibrate([200]); // Long Error Vibrate
+                             setAlert({
+                                 title: 'Item Not Found',
+                                 message: `Barcode "${code}" does not match any product in inventory.`,
+                                 type: 'error'
+                             });
+                             // Don't process further, wait for alert dismissal
+                             return; 
+                        }
+                        
+                        if (existing.stock <= 0) {
+                             if (navigator.vibrate) navigator.vibrate([200]); 
+                             setAlert({
+                                 title: 'Out of Stock',
+                                 message: `${existing.name} is currently out of stock.`,
+                                 type: 'warning'
+                             });
+                             return;
+                        }
+                    }
+
+                    // Success Case
                     playScanSound();
                     if (navigator.vibrate) navigator.vibrate([50]);
 
-                    const existing = productsRef.current.find(p => p.barcode === code);
                     setStatusMessage(existing ? `Added: ${existing.name}` : `Scanned: ${code}`);
                     
                     // Call the latest onScan handler
@@ -127,10 +170,11 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                         }, 500);
                     } else {
                         // Continuous mode: Reset lock after delay to allow next scan
-                        // Requested 1.5s delay
                         setTimeout(() => {
-                            isScanning.current = false;
-                            setStatusMessage("Align code within frame");
+                            if (isActive) {
+                                isScanning.current = false;
+                                setStatusMessage("Align code within frame");
+                            }
                         }, 1500);
                     }
                 });
@@ -146,14 +190,17 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
 
             } catch (error: any) {
                 console.error("Scanner Init Error:", error);
-                setScanStatus('ERROR');
-                setStatusMessage(error.message || "Failed to start scanner");
+                if (isActive) {
+                    setScanStatus('ERROR');
+                    setStatusMessage(error.message || "Failed to start scanner. Restart app.");
+                }
             }
         };
 
         initializeScanner();
 
         return () => {
+            isActive = false;
             // Cleanup on unmount
             if (isNative) {
                 BarcodeScanner.stopScan();
@@ -201,20 +248,32 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
         }
     };
 
+    const dismissAlert = () => {
+        setAlert(null);
+        // Add a small delay before allowing scan again to prevent immediate rescanning of same bad code
+        setTimeout(() => {
+            isScanning.current = false;
+        }, 1000);
+    };
+
     // Use Portal to render outside root div, allowing us to hide the entire app container
+    // Conditionally hide the scanner UI itself when paused (viewing cart)
     return createPortal(
-        <div className="fixed inset-0 z-[100] flex flex-col bg-transparent">
+        <div className={`fixed inset-0 z-[100] flex flex-col bg-transparent ${paused ? 'invisible pointer-events-none' : ''}`}>
             <style>{`
                 /* Make body transparent to see native camera layer */
                 body.scanner-active, html.scanner-active {
                     background: transparent !important;
                 }
                 
-                /* Hide the entire React App container while scanning */
-                /* This ensures NO HTML elements (like cards, images, modals) block the camera view */
+                /* Hide the entire React App container while scanning ONLY if not paused */
+                /* This ensures NO HTML elements block the camera view normally */
+                /* But when paused (viewing order), we MUST show the app container so the Cart modal is visible */
+                ${!paused ? `
                 body.scanner-active #app-root-container {
                     display: none !important;
                 }
+                ` : ''}
             `}</style>
 
             {/* Main Content Area */}
@@ -253,7 +312,7 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                             <AlertTriangle size={48} className="text-red-500" />
                          </div>
                          <h3 className="text-white font-bold text-xl mb-2">Scanner Error</h3>
-                         <p className="text-white/60 mb-8 max-w-xs">
+                         <p className="text-white/60 mb-8 max-w-xs text-xs break-all">
                              {statusMessage}
                          </p>
                          <button 
@@ -265,8 +324,24 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                      </div>
                 )}
 
-                {/* 3. Active Scanning State - Overlay UI */}
-                {(scanStatus === 'SEARCHING' || scanStatus === 'DETECTED') && (
+                {/* 3. Alert Modal (Overlay) */}
+                {alert && (
+                    <div className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white w-full max-w-xs rounded-3xl p-6 text-center shadow-2xl animate-in zoom-in-95">
+                            <div className={`h-16 w-16 mx-auto rounded-full flex items-center justify-center mb-4 ${alert.type === 'error' ? 'bg-red-100 text-red-500' : 'bg-amber-100 text-amber-500'}`}>
+                                {alert.type === 'error' ? <AlertCircle size={32} /> : <Ban size={32} />}
+                            </div>
+                            <h3 className="text-xl font-bold text-[#1A2F1A] mb-2">{alert.title}</h3>
+                            <p className="text-[#7A8C7A] text-sm mb-6">{alert.message}</p>
+                            <Button onClick={dismissAlert} className="w-full">
+                                OK
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                {/* 4. Active Scanning State - Overlay UI */}
+                {(scanStatus === 'SEARCHING' || scanStatus === 'DETECTED') && !alert && (
                     <>
                         <div className="absolute inset-0 pointer-events-none">
                             {/* Transparent Hole for Scanning Area - Shadow provides the dimming for rest of screen */}
@@ -340,6 +415,7 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                              {/* View Order Button */}
                              {onViewOrder && (
                                 <button 
+                                    type="button"
                                     onClick={(e) => { e.stopPropagation(); onViewOrder(); }}
                                     className="p-3 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 backdrop-blur-md transition-all active:scale-95 relative"
                                     title="View Order"

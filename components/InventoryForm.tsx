@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { Category, Product } from '../types';
 import { Button } from './ui/Button';
-import { X, Sparkles, Image as ImageIcon, Upload, AlertCircle, Scan, Wand2, Camera } from 'lucide-react';
-import { generateProductDescription, generateProductDetails } from '../services/geminiService';
+import { X, Image as ImageIcon, Upload, AlertCircle, Scan, Wand2, Camera } from 'lucide-react';
+import { generateProductDetails } from '../services/geminiService';
 import { Scanner } from './Scanner';
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 
@@ -26,7 +26,6 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
   const [stock, setStock] = useState(initialProduct?.stock.toString() || '');
   const [description, setDescription] = useState(initialProduct?.description || '');
   const [barcode, setBarcode] = useState(initialProduct?.barcode || '');
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(initialProduct?.image || null);
   const [isDragging, setIsDragging] = useState(false);
@@ -41,14 +40,6 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
           setCategory(categories[0]);
       }
   }, [categories, category]);
-
-  const handleGenerateDescription = async () => {
-    if (!name) return;
-    setIsGenerating(true);
-    const desc = await generateProductDescription(name, category);
-    setDescription(desc);
-    setIsGenerating(false);
-  };
 
   const handleAutoFill = async () => {
     if (!name) return;
@@ -228,6 +219,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
         />
     )}
     {/* Hide the modal when scanner is active so the camera (z-index 0) can be seen through the transparent Scanner component */}
+    {/* This is critical to prevent the opaque modal background from blocking the camera view */}
     <div className={`fixed inset-0 bg-[#1A2F1A]/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 ${showScanner ? 'hidden' : ''}`}>
       <div className="bg-[#FDFDFD] rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-[#F2F5F1] max-h-[90vh] flex flex-col">
         
@@ -438,15 +430,6 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
             <div>
               <div className="flex justify-between items-center mb-2">
                 <label className="block text-xs font-bold text-[#4A6741] uppercase tracking-wider">Description</label>
-                <button 
-                  type="button"
-                  onClick={handleGenerateDescription}
-                  disabled={!name || isGenerating}
-                  className="text-xs flex items-center text-[#4A6741] bg-[#DCE7D9] px-2 py-1 rounded-lg hover:bg-[#4A6741] hover:text-white font-bold transition-all disabled:opacity-50 disabled:hover:bg-[#DCE7D9] disabled:hover:text-[#4A6741]"
-                >
-                  <Sparkles size={12} className="mr-1" />
-                  {isGenerating ? 'Writing...' : 'AI Write'}
-                </button>
               </div>
               <textarea 
                 value={description}
