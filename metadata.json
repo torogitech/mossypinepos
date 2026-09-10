@@ -1,7 +1,10 @@
 {
-  "name": "MossypinePOS",
+  "name": "ILISTAM",
   "description": "A modern, mobile-first Point of Sale and Inventory Management application featuring AI-powered product descriptions and a clean, card-based interface.",
   "requestFramePermissions": [
     "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]
 }

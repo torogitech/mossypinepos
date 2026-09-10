@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Scan, Zap, ZapOff, ZoomIn, ZoomOut, AlertTriangle, Settings, ShoppingBag, AlertCircle, Ban } from 'lucide-react';
+import { X, Scan, Zap, ZapOff, ZoomIn, ZoomOut, AlertTriangle, Settings, ShoppingBag, AlertCircle, Ban, CheckCircle2 } from 'lucide-react';
 import { Product } from '../types';
 import { BarcodeScanner, BarcodeFormat, LensFacing } from '@capacitor-mlkit/barcode-scanning';
 import { Capacitor } from '@capacitor/core';
@@ -16,28 +16,69 @@ interface ScannerProps {
   paused?: boolean;
 }
 
-const playScanSound = () => {
+const playSuccessSound = () => {
   try {
     const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContext) return;
     
     const ctx = new AudioContext();
-    const oscillator = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(ctx.destination);
-
-    // High-pitched "beep"
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(1800, ctx.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
     
-    gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+    const playTone = (freq: number, startTime: number, duration: number) => {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
 
-    oscillator.start();
-    oscillator.stop(ctx.currentTime + 0.15);
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        oscillator.type = 'sine';
+        oscillator.frequency.value = freq;
+        
+        gainNode.gain.setValueAtTime(0.1, startTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+    };
+
+    const now = ctx.currentTime;
+    // Play a "ding-dong" success sound (High C then Higher E)
+    playTone(880, now, 0.1); // A5
+    playTone(1760, now + 0.1, 0.3); // A6
+
+  } catch (e) {
+    // Ignore audio errors
+  }
+};
+
+const playErrorSound = () => {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    
+    const ctx = new AudioContext();
+    
+    const playTone = (freq: number, type: OscillatorType, startTime: number, duration: number) => {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        oscillator.type = type;
+        oscillator.frequency.value = freq;
+        
+        gainNode.gain.setValueAtTime(0.1, startTime);
+        gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+    };
+
+    const now = ctx.currentTime;
+    // Play a "buzz" error sound (Sawtooth wave, low frequency)
+    playTone(150, 'sawtooth', now, 0.4); 
+    playTone(100, 'sawtooth', now + 0.1, 0.4);
+
   } catch (e) {
     // Ignore audio errors
   }
@@ -55,9 +96,10 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
     
     const [torchOn, setTorchOn] = useState(false);
     const [zoom, setZoom] = useState(1.0);
-    const [statusMessage, setStatusMessage] = useState<string>("Initializing camera...");
+    const [statusMessage, setStatusMessage] = useState<string>("Align code within frame");
     const [isNative] = useState(Capacitor.isNativePlatform());
     const [alert, setAlert] = useState<ScannerAlert | null>(null);
+    const [isSuccess, setIsSuccess] = useState(false);
 
     // Refs to avoid stale closures in the event listener
     const isScanning = useRef(false);
@@ -133,6 +175,7 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                     // If continuous mode (POS), check inventory first
                     if (continuous) {
                         if (!existing) {
+                             playErrorSound();
                              if (navigator.vibrate) navigator.vibrate([200]); // Long Error Vibrate
                              setAlert({
                                  title: 'Item Not Found',
@@ -144,6 +187,7 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                         }
                         
                         if (existing.stock <= 0) {
+                             playErrorSound();
                              if (navigator.vibrate) navigator.vibrate([200]); 
                              setAlert({
                                  title: 'Out of Stock',
@@ -155,9 +199,10 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                     }
 
                     // Success Case
-                    playScanSound();
+                    playSuccessSound();
                     if (navigator.vibrate) navigator.vibrate([50]);
-
+                    
+                    setIsSuccess(true);
                     setStatusMessage(existing ? `Added: ${existing.name}` : `Scanned: ${code}`);
                     
                     // Call the latest onScan handler
@@ -172,6 +217,7 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                         // Continuous mode: Reset lock after delay to allow next scan
                         setTimeout(() => {
                             if (isActive) {
+                                setIsSuccess(false);
                                 isScanning.current = false;
                                 setStatusMessage("Align code within frame");
                             }
@@ -326,14 +372,14 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
 
                 {/* 3. Alert Modal (Overlay) */}
                 {alert && (
-                    <div className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                        <div className="bg-white w-full max-w-xs rounded-3xl p-6 text-center shadow-2xl animate-in zoom-in-95">
-                            <div className={`h-16 w-16 mx-auto rounded-full flex items-center justify-center mb-4 ${alert.type === 'error' ? 'bg-red-100 text-red-500' : 'bg-amber-100 text-amber-500'}`}>
+                    <div className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>
+                        <div className="bg-white w-full max-w-xs rounded-3xl p-6 text-center shadow-2xl animate-in zoom-in-95 duration-200 transform">
+                            <div className={`h-16 w-16 mx-auto rounded-full flex items-center justify-center mb-4 ${alert.type === 'error' ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-500'}`}>
                                 {alert.type === 'error' ? <AlertCircle size={32} /> : <Ban size={32} />}
                             </div>
                             <h3 className="text-xl font-bold text-[#1A2F1A] mb-2">{alert.title}</h3>
-                            <p className="text-[#7A8C7A] text-sm mb-6">{alert.message}</p>
-                            <Button onClick={dismissAlert} className="w-full">
+                            <p className="text-[#7A8C7A] text-sm mb-6 leading-relaxed">{alert.message}</p>
+                            <Button onClick={dismissAlert} className="w-full py-3 text-base shadow-lg" variant={alert.type === 'error' ? 'danger' : 'primary'}>
                                 OK
                             </Button>
                         </div>
@@ -345,18 +391,29 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                     <>
                         <div className="absolute inset-0 pointer-events-none">
                             {/* Transparent Hole for Scanning Area - Shadow provides the dimming for rest of screen */}
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-64 bg-transparent shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] rounded-3xl overflow-hidden box-content border-2 border-white/20">
-                                {/* Corner Markers */}
-                                <div className="absolute top-0 left-0 w-10 h-10 border-t-[6px] border-l-[6px] rounded-tl-xl -mt-1 -ml-1 border-white"></div>
-                                <div className="absolute top-0 right-0 w-10 h-10 border-t-[6px] border-r-[6px] rounded-tr-xl -mt-1 -mr-1 border-white"></div>
-                                <div className="absolute bottom-0 left-0 w-10 h-10 border-b-[6px] border-l-[6px] rounded-bl-xl -mb-1 -ml-1 border-white"></div>
-                                <div className="absolute bottom-0 right-0 w-10 h-10 border-b-[6px] border-r-[6px] rounded-br-xl -mb-1 -mr-1 border-white"></div>
+                            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-64 bg-transparent shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] rounded-3xl overflow-hidden box-content border-2 transition-colors duration-300 ${isSuccess ? 'border-emerald-500 shadow-[0_0_0_9999px_rgba(0,0,0,0.7)]' : 'border-white/20'}`}>
+                                
+                                {isSuccess ? (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-emerald-500/20 animate-in fade-in zoom-in duration-200">
+                                        <div className="bg-emerald-500 text-white p-4 rounded-full shadow-lg shadow-emerald-500/40 animate-bounce">
+                                            <CheckCircle2 size={48} />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Corner Markers */}
+                                        <div className="absolute top-0 left-0 w-10 h-10 border-t-[6px] border-l-[6px] rounded-tl-xl -mt-1 -ml-1 border-white"></div>
+                                        <div className="absolute top-0 right-0 w-10 h-10 border-t-[6px] border-r-[6px] rounded-tr-xl -mt-1 -mr-1 border-white"></div>
+                                        <div className="absolute bottom-0 left-0 w-10 h-10 border-b-[6px] border-l-[6px] rounded-bl-xl -mb-1 -ml-1 border-white"></div>
+                                        <div className="absolute bottom-0 right-0 w-10 h-10 border-b-[6px] border-r-[6px] rounded-br-xl -mb-1 -mr-1 border-white"></div>
 
-                                {/* Scan Line Animation */}
-                                <div 
-                                    className="absolute left-0 right-0 h-1 bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] opacity-60"
-                                    style={{ animation: 'scan 2s infinite linear' }}
-                                ></div>
+                                        {/* Scan Line Animation */}
+                                        <div 
+                                            className="absolute left-0 right-0 h-1 bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] opacity-60"
+                                            style={{ animation: 'scan 2s infinite linear' }}
+                                        ></div>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </>
@@ -380,7 +437,7 @@ export const Scanner: React.FC<ScannerProps> = ({ onClose, onScan, products, con
                 {(scanStatus === 'SEARCHING' || scanStatus === 'DETECTED') && (
                     <div className="absolute bottom-0 left-0 right-0 pb-10 pt-20 px-6 flex flex-col items-center gap-6 z-20 bg-gradient-to-t from-black/90 to-transparent">
                         
-                        <div className="px-6 py-2.5 rounded-full backdrop-blur-xl border border-white/10 bg-white/10 text-white font-medium text-sm shadow-lg">
+                        <div className={`px-6 py-2.5 rounded-full backdrop-blur-xl border font-medium text-sm shadow-lg transition-colors duration-300 ${isSuccess ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-100' : 'bg-white/10 border-white/10 text-white'}`}>
                             {statusMessage}
                         </div>
 

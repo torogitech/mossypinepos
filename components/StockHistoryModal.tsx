@@ -88,7 +88,7 @@ export const StockHistoryModal: React.FC<StockHistoryModalProps> = ({ isOpen, on
               <div className="flex items-center gap-2 text-xs text-[#7A8C7A] mt-0.5">
                 <span>Current Stock: <span className={`font-bold ${isOutOfStock ? 'text-red-500' : 'text-[#4A6741]'}`}>{product.stock}</span></span>
                 <span>•</span>
-                <span>Price: ₱{product.price.toFixed(2)}</span>
+                <span>Price: ₱{Number(product.price || 0).toFixed(2)}</span>
               </div>
             </div>
           </div>

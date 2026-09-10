@@ -75,7 +75,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAdd, onUpda
 
         <div className="mt-auto flex items-end justify-between">
           <div>
-             <span className={`font-bold text-base block ${isOutOfStock ? 'text-[#7A8C7A]' : 'text-[#4A6741]'}`}>₱{product.price.toFixed(2)}</span>
+             <span className={`font-bold text-base block ${isOutOfStock ? 'text-[#7A8C7A]' : 'text-[#4A6741]'}`}>₱{Number(product.price || 0).toFixed(2)}</span>
              <div className={`flex items-center gap-1 text-[10px] font-bold mt-1 ${isOutOfStock ? 'text-red-500' : isLowStock ? 'text-amber-600' : 'text-[#7A8C7A]'}`}>
                 <Package size={10} />
                 <span>{product.stock} left</span>

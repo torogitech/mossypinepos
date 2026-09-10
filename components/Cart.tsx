@@ -106,10 +106,10 @@ export const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onRemove, o
                     <div className="flex-1 min-w-0">
                     <div className="flex justify-between mb-1">
                         <span className="font-bold text-[#1A2F1A] text-sm truncate">{item.name}</span>
-                        <span className="font-bold text-[#4A6741] text-sm ml-2">₱{(item.price * item.quantity).toFixed(2)}</span>
+                        <span className="font-bold text-[#4A6741] text-sm ml-2">₱{Number((item.price * item.quantity) || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                        <span className="text-xs text-[#7A8C7A]">@ ₱{item.price.toFixed(2)}</span>
+                        <span className="text-xs text-[#7A8C7A]">@ ₱{Number(item.price || 0).toFixed(2)}</span>
                         <div className="flex items-center gap-2 bg-[#F2F5F1] rounded-lg p-1">
                         <button 
                             onClick={() => onUpdateQuantity(item.id, -1)}
@@ -146,7 +146,7 @@ export const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onRemove, o
                      <div className="relative flex-1">
                         <input 
                             type="number" 
-                            value={discountValue}
+                            value={discountValue || ''}
                             onChange={(e) => setDiscountValue(e.target.value)}
                             placeholder="Discount"
                             className="w-full pl-3 pr-3 py-2 bg-[#F2F5F1] rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 text-[#1A2F1A] uppercase"
@@ -171,17 +171,17 @@ export const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onRemove, o
                 <div className="space-y-2">
                     <div className="flex justify-between text-xs text-[#7A8C7A]">
                         <span>Subtotal</span>
-                        <span>₱{subtotal.toFixed(2)}</span>
+                        <span>₱{Number(subtotal || 0).toFixed(2)}</span>
                     </div>
                     {discount > 0 && (
                          <div className="flex justify-between text-xs text-[#4A6741] font-medium">
                             <span>Discount</span>
-                            <span>-₱{discount.toFixed(2)}</span>
+                            <span>-₱{Number(discount || 0).toFixed(2)}</span>
                         </div>
                     )}
                     <div className="flex justify-between text-xl font-black text-[#1A2F1A] pt-2 border-t border-dashed border-[#E8EFE6]">
                         <span>Total</span>
-                        <span>₱{finalTotal.toFixed(2)}</span>
+                        <span>₱{Number(finalTotal || 0).toFixed(2)}</span>
                     </div>
                 </div>
 
@@ -193,14 +193,14 @@ export const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onRemove, o
                         </div>
                         <input 
                             type="number" 
-                            value={paidAmount}
+                            value={paidAmount || ''}
                             onChange={(e) => setPaidAmount(e.target.value)}
                             placeholder="Amount Paid"
                             className="w-full pl-10 pr-3 py-3 bg-[#F2F5F1] rounded-xl text-[#1A2F1A] font-bold focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 uppercase"
                         />
                          {paid > 0 && change >= 0 && (
                             <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#4A6741] bg-[#E8F5E9] px-2 py-1 rounded-lg">
-                                Change: ₱{change.toFixed(2)}
+                                Change: ₱{Number(change || 0).toFixed(2)}
                             </div>
                         )}
                     </div>
@@ -217,7 +217,7 @@ export const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onRemove, o
                             </button>
                         ))}
                          <button 
-                                onClick={() => setPaidAmount(finalTotal.toFixed(2))}
+                                onClick={() => setPaidAmount(Number(finalTotal || 0).toFixed(2))}
                                 className="px-3 py-1.5 bg-[#4A6741]/10 border border-[#4A6741]/20 rounded-lg text-xs font-bold text-[#4A6741] hover:bg-[#4A6741]/20 whitespace-nowrap"
                             >
                                 Exact
@@ -233,7 +233,7 @@ export const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onRemove, o
                     }`}
                     icon={<CreditCard size={20} />}
                 >
-                    {paid >= finalTotal ? `Charge ₱${finalTotal.toFixed(2)}` : `Pay ₱${finalTotal.toFixed(2)}`}
+                    {paid >= finalTotal ? `Charge ₱${Number(finalTotal || 0).toFixed(2)}` : `Pay ₱${Number(finalTotal || 0).toFixed(2)}`}
                 </Button>
             </div>
         </>

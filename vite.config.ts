@@ -13,14 +13,34 @@ export default defineConfig({
     }),
   ],
   define: {
-    // Polyfill process.env for WatermelonDB and Gemini API usage
-    'process.env': {} 
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+    'process.env.GEMINI_API_KEY': JSON.stringify(process.env.GEMINI_API_KEY || ''),
+    'process.env.API_KEY': JSON.stringify(process.env.GEMINI_API_KEY || process.env.API_KEY || ''),
+    'process.env': JSON.stringify({
+      NODE_ENV: process.env.NODE_ENV || 'development',
+      GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+      API_KEY: process.env.GEMINI_API_KEY || process.env.API_KEY || ''
+    })
+  },
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-dom/client',
+      'lucide-react',
+      '@google/genai',
+      '@nozbe/watermelondb',
+      '@nozbe/watermelondb/adapters/lokijs',
+      '@nozbe/watermelondb/decorators'
+    ]
   },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
   },
   server: {
-    port: 3000
+    host: '0.0.0.0',
+    port: 3000,
+    strictPort: true
   }
 });

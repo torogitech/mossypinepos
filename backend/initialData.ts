@@ -69,6 +69,24 @@ export const INITIAL_USERS = [
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jane',
     phone: '+1 (555) 010-1234',
     joinedDate: '2023-01-15T00:00:00Z'
+  },
+  {
+    id: 'u2',
+    name: 'Alex Rivera',
+    email: 'alex@mossypine.com',
+    role: 'MANAGER',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex',
+    phone: '+1 (555) 010-5678',
+    joinedDate: '2023-03-20T00:00:00Z'
+  },
+  {
+    id: 'u3',
+    name: 'Sam Taylor',
+    email: 'sam@mossypine.com',
+    role: 'STAFF',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sam',
+    phone: '+1 (555) 010-9012',
+    joinedDate: '2023-06-10T00:00:00Z'
   }
 ];
 

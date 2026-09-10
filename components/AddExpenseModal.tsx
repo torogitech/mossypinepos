@@ -56,7 +56,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ onSave, onClos
                      required
                      min="0"
                      step="0.01"
-                     value={amount}
+                     value={amount || ''}
                      onChange={(e) => setAmount(e.target.value)}
                      className="w-full pl-12 p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-black text-lg placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all uppercase"
                      placeholder="0.00"
@@ -73,7 +73,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ onSave, onClos
                   <input 
                     type="text" 
                     required
-                    value={title}
+                    value={title || ''}
                     onChange={(e) => setTitle(e.target.value)}
                     className="w-full pl-12 p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all uppercase"
                     placeholder="e.g., Staff Meriendas"
@@ -87,7 +87,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ onSave, onClos
                 <div className="relative">
                     <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-[#B0C4B0]" size={18} />
                     <select 
-                        value={category}
+                        value={category || ''}
                         onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
                         className="w-full pl-12 p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all appearance-none uppercase"
                     >
@@ -107,7 +107,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ onSave, onClos
             <div>
               <label className="block text-xs font-bold text-[#4A6741] uppercase tracking-wider mb-2">Note (Optional)</label>
               <textarea 
-                value={note}
+                value={note || ''}
                 onChange={(e) => setNote(e.target.value)}
                 className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all h-24 resize-none uppercase"
                 placeholder="Additional details..."

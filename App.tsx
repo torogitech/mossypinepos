@@ -12,7 +12,7 @@ import { StockAdjustmentModal } from './components/StockAdjustmentModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { UserManagementModal } from './components/UserManagementModal';
 import { SettingsModal } from './components/SettingsModal';
-import { LoginForm } from './components/LoginForm';
+import { LoginForm, DEFAULT_DEMO_USERS } from './components/LoginForm';
 import { LogoutConfirmationModal } from './components/LogoutConfirmationModal';
 import { AddExpenseModal } from './components/AddExpenseModal';
 import { OrderDetailsModal } from './components/OrderDetailsModal';
@@ -157,7 +157,10 @@ const App: React.FC = () => {
   const [inventorySearch, setInventorySearch] = useState('');
   const [transactionSearch, setTransactionSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => loadLocalSetting<User | null>('mp_current_user', null));
+  
+  // Expense Filter State
+  const [expenseFilter, setExpenseFilter] = useState<'Daily' | 'Monthly' | 'Quarterly'>('Monthly');
 
   // Modal States
   const [isInventoryModalOpen, setIsInventoryModalOpen] = useState(false);
@@ -444,7 +447,7 @@ const App: React.FC = () => {
         await dbService.createTransaction(newTransaction, stockUpdates, newLogs);
         await refreshData();
         
-        showNotification(`Transaction complete! Change: ₱${change.toFixed(2)}`, "success");
+        showNotification(`Transaction complete! Change: ₱${Number(change || 0).toFixed(2)}`, "success");
         clearCart();
         setIsCartOpen(false);
         setIsDesktopCartOpen(false);
@@ -625,6 +628,11 @@ const App: React.FC = () => {
           await refreshData();
           if (currentUser && updatedUser.id === currentUser.id) {
               setCurrentUser(updatedUser);
+              try {
+                  localStorage.setItem('mp_current_user', JSON.stringify(updatedUser));
+              } catch (err) {
+                  console.error(err);
+              }
           }
           showNotification("User updated", "success");
       } catch (e) {
@@ -664,11 +672,34 @@ const App: React.FC = () => {
   
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = (p.name || '').toLowerCase().includes((searchQuery || '').toLowerCase());
       const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });
   }, [products, searchQuery, selectedCategory]);
+
+  const filteredExpensesList = useMemo(() => {
+    const now = new Date();
+    return manualExpenses.filter(e => {
+        const d = new Date(e.date);
+        if (expenseFilter === 'Daily') {
+            return d.getDate() === now.getDate() && 
+                   d.getMonth() === now.getMonth() && 
+                   d.getFullYear() === now.getFullYear();
+        } else if (expenseFilter === 'Monthly') {
+            return d.getMonth() === now.getMonth() && 
+                   d.getFullYear() === now.getFullYear();
+        } else if (expenseFilter === 'Quarterly') {
+            const currentQuarter = Math.floor(now.getMonth() / 3);
+            const expenseQuarter = Math.floor(d.getMonth() / 3);
+            return currentQuarter === expenseQuarter && 
+                   d.getFullYear() === now.getFullYear();
+        }
+        return true;
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [manualExpenses, expenseFilter]);
+
+  const totalFilteredExpenses = filteredExpensesList.reduce((sum, e) => sum + e.amount, 0);
 
   const totalCartItems = cart.reduce((acc, item) => acc + item.quantity, 0);
 
@@ -748,18 +779,31 @@ const App: React.FC = () => {
   // Misc Handlers
   const handleLogin = (user: User) => {
     setCurrentUser(user);
+    try {
+      localStorage.setItem('mp_current_user', JSON.stringify(user));
+    } catch (e) {
+      console.error(e);
+    }
     setView('HOME');
+    showNotification(`Signed in as ${user.name} (${user.role})`, 'success');
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
+    try {
+      localStorage.removeItem('mp_current_user');
+    } catch (e) {
+      console.error(e);
+    }
     setView('HOME');
     setCart([]);
+    showNotification("Logged out", "success");
   };
 
   const addToCart = (product: Product, openCart = true) => {
     if (!currentUser) {
-        showNotification("Please log in to add items", "error");
+        showNotification("Please sign in to test the POS cart. Tap Login below.", "error");
+        setView('MORE');
         return;
     }
     if (product.stock <= 0) {
@@ -912,6 +956,33 @@ const App: React.FC = () => {
     <>
       <div className="sticky top-0 z-20 bg-[#F2F5F1]/95 backdrop-blur-sm pb-4 pt-[calc(0.5rem+env(safe-area-inset-top))] -mx-2 px-2 md:mx-0 md:px-0 transition-all">
          <div className="flex flex-col gap-4">
+           {!currentUser && (
+             <div className="bg-[#E8F5E9] border border-[#C8E6C9] rounded-2xl p-3.5 mx-2 md:mx-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+               <div className="flex items-center gap-3">
+                 <div className="h-9 w-9 rounded-xl bg-[#1A2F1A] text-white flex items-center justify-center shrink-0">
+                   <UserIcon size={18} />
+                 </div>
+                 <div>
+                   <p className="text-xs font-bold text-[#1A2F1A]">Demo Mode • Testing POS?</p>
+                   <p className="text-[11px] text-[#4A6741]">Sign in with 1 click to test ordering, stock & the POS terminal</p>
+                 </div>
+               </div>
+               <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                 <button
+                   onClick={() => handleLogin((users && users[0]) || DEFAULT_DEMO_USERS[0])}
+                   className="flex-1 sm:flex-none px-3.5 py-2 bg-[#1A2F1A] hover:bg-[#2E4A2E] text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
+                 >
+                   Login as Owner
+                 </button>
+                 <button
+                   onClick={() => setView('MORE')}
+                   className="px-3 py-2 bg-white hover:bg-[#F2F5F1] text-[#1A2F1A] border border-[#C8E6C9] rounded-xl text-xs font-bold transition-all"
+                 >
+                   All Demo Roles
+                 </button>
+               </div>
+             </div>
+           )}
            <div className="flex items-center justify-between px-2 md:px-0">
              <h1 className="text-2xl font-bold text-[#1A2F1A]">Menu</h1>
              <button 
@@ -951,7 +1022,7 @@ const App: React.FC = () => {
                   <input 
                       type="text" 
                       placeholder="Search items..." 
-                      value={searchQuery}
+                      value={searchQuery || ''}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full pl-12 pr-10 py-3 bg-white rounded-2xl border border-[#E8EFE6] text-sm focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 shadow-sm placeholder-[#B0C4B0] uppercase"
                   />
@@ -1011,15 +1082,15 @@ const App: React.FC = () => {
          <div className="grid grid-cols-3 gap-3">
              <div className="bg-[#4A6741] text-white p-4 rounded-3xl shadow-lg flex flex-col justify-between h-28 relative overflow-hidden">
                 <span className="text-xs font-medium opacity-80 uppercase tracking-wide">Daily</span>
-                <div><span className="text-xl font-bold block">₱{salesStats.daily.total.toFixed(2)}</span></div>
+                <div><span className="text-xl font-bold block">₱{Number(salesStats.daily.total || 0).toFixed(2)}</span></div>
              </div>
              <div className="bg-white text-[#1A2F1A] p-4 rounded-3xl border border-[#E8EFE6] shadow-sm flex flex-col justify-between h-28">
                 <span className="text-xs font-bold text-[#7A8C7A] uppercase tracking-wide">Weekly</span>
-                <div><span className="text-xl font-bold block">₱{salesStats.weekly.total.toFixed(2)}</span></div>
+                <div><span className="text-xl font-bold block">₱{Number(salesStats.weekly.total || 0).toFixed(2)}</span></div>
              </div>
              <div className="bg-white text-[#1A2F1A] p-4 rounded-3xl border border-[#E8EFE6] shadow-sm flex flex-col justify-between h-28">
                 <span className="text-xs font-bold text-[#7A8C7A] uppercase tracking-wide">Monthly</span>
-                <div><span className="text-xl font-bold block">₱{salesStats.monthly.total.toFixed(2)}</span></div>
+                <div><span className="text-xl font-bold block">₱{Number(salesStats.monthly.total || 0).toFixed(2)}</span></div>
              </div>
          </div>
       </div>
@@ -1044,7 +1115,7 @@ const App: React.FC = () => {
                  </div>
                  <div><p className="font-bold text-[#1A2F1A] text-sm line-clamp-1">{t.items}</p><span className="text-xs text-[#7A8C7A]">{t.date}</span></div>
                </div>
-               <span className="font-bold text-[#1A2F1A] whitespace-nowrap pl-2">₱{t.amount.toFixed(2)}</span>
+               <span className="font-bold text-[#1A2F1A] whitespace-nowrap pl-2">₱{Number(t.amount || 0).toFixed(2)}</span>
             </button>
           ))}
         </div>
@@ -1075,7 +1146,7 @@ const App: React.FC = () => {
                             <button key={t.id} onClick={() => setSelectedTransaction(t)} className="w-full bg-white p-4 rounded-2xl border border-[#E8EFE6] shadow-sm flex flex-col gap-3 text-left">
                                 <div className="flex justify-between w-full">
                                     <span className="font-bold text-[#1A2F1A]">{t.items}</span>
-                                    <span className="font-bold">₱{t.amount.toFixed(2)}</span>
+                                    <span className="font-bold">₱{Number(t.amount || 0).toFixed(2)}</span>
                                 </div>
                                 <div className="text-xs text-[#7A8C7A]">{t.date} • {t.cashierName}</div>
                             </button>
@@ -1084,6 +1155,76 @@ const App: React.FC = () => {
                  </div>
             )}
             
+            {view === 'EXPENSES' && (
+                 <div className="mb-24 lg:mb-8 mx-2 md:mx-0">
+                    <div className="sticky top-0 z-30 bg-[#F2F5F1]/95 backdrop-blur-sm pb-3 pt-[calc(0.5rem+env(safe-area-inset-top))] -mx-2 px-2 md:mx-0 md:px-0">
+                         <div className="flex items-center gap-3 mb-4 px-2 md:px-0">
+                            <button onClick={() => setView('OVERVIEW')} className="bg-white p-2 rounded-full shadow-sm border border-[#E8EFE6] text-[#1A2F1A] hover:bg-[#F2F5F1] transition-colors"><ArrowLeft size={20} /></button>
+                            <h2 className="text-2xl font-bold text-[#1A2F1A]">Expenses</h2>
+                         </div>
+                         <div className="flex gap-2 p-1 bg-white rounded-xl border border-[#E8EFE6] w-fit mb-2 mx-2 md:px-0 shadow-sm">
+                            {(['Daily', 'Monthly', 'Quarterly'] as const).map(f => (
+                                <button 
+                                    key={f} 
+                                    onClick={() => setExpenseFilter(f)}
+                                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${expenseFilter === f ? 'bg-[#1A2F1A] text-white shadow-md' : 'text-[#7A8C7A] hover:bg-[#F2F5F1]'}`}
+                                >
+                                    {f}
+                                </button>
+                            ))}
+                         </div>
+                    </div>
+
+                    <div className="space-y-4 px-2 md:px-0 mt-4">
+                        <div className="bg-[#4A6741] text-white p-6 rounded-3xl shadow-lg shadow-[#4A6741]/20 relative overflow-hidden">
+                            <div className="relative z-10">
+                                <span className="text-xs font-bold opacity-80 uppercase tracking-wider block mb-1">Total {expenseFilter} Expenses</span>
+                                <span className="text-3xl font-black">₱{Number(totalFilteredExpenses || 0).toFixed(2)}</span>
+                            </div>
+                            <div className="absolute -right-4 -bottom-4 opacity-10 transform scale-150 text-white">
+                                <FileText size={100} />
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setIsAddExpenseModalOpen(true)}
+                            className="w-full py-4 bg-white border border-[#E8EFE6] rounded-2xl font-bold text-[#4A6741] shadow-sm hover:bg-[#F9FAF9] flex items-center justify-center gap-2 active:scale-95 transition-all"
+                        >
+                            <Plus size={20} /> Record New Expense
+                        </button>
+
+                         <div className="space-y-3">
+                            <h3 className="font-bold text-[#1A2F1A] text-lg mt-2">History</h3>
+                            {filteredExpensesList.length === 0 ? (
+                                <div className="text-center py-12 text-[#B0C4B0] bg-white rounded-3xl border border-[#E8EFE6] border-dashed">
+                                    <FileText size={32} className="mx-auto mb-2 opacity-50" />
+                                    <p className="text-xs font-medium">No expenses found for this period.</p>
+                                </div>
+                            ) : (
+                                filteredExpensesList.map(exp => (
+                                    <div key={exp.id} className="bg-white p-4 rounded-2xl border border-[#E8EFE6] shadow-sm flex justify-between items-center hover:border-[#DCE7D9] transition-colors">
+                                        <div className="flex gap-3 items-center">
+                                            <div className="h-10 w-10 rounded-xl bg-[#F2F5F1] flex items-center justify-center text-[#4A6741]">
+                                                <FileText size={18} />
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-[#1A2F1A] text-sm">{exp.title}</p>
+                                                <div className="flex items-center gap-2 text-[10px] text-[#7A8C7A] font-medium mt-0.5">
+                                                    <span className="bg-[#E8F5E9] text-[#4A6741] px-1.5 py-0.5 rounded-md uppercase tracking-wide">{exp.category}</span>
+                                                    <span>•</span>
+                                                    <span>{new Date(exp.date).toLocaleDateString()}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <span className="font-bold text-[#1A2F1A] text-sm">-₱{Number(exp.amount || 0).toFixed(2)}</span>
+                                    </div>
+                                ))
+                            )}
+                         </div>
+                    </div>
+                 </div>
+            )}
+
             {view === 'INVENTORY' && (
                  <div className="mb-32 lg:mb-8 mx-2 md:mx-0">
                     <div className="sticky top-0 z-30 bg-[#F2F5F1]/95 backdrop-blur-sm pb-3 pt-[calc(0.5rem+env(safe-area-inset-top))] -mx-2 px-2 shadow-sm md:mx-0 md:px-0 flex justify-between items-center">
@@ -1098,7 +1239,7 @@ const App: React.FC = () => {
                             <div key={p.id} onClick={() => openEditModal(p)} className="bg-white p-3 rounded-3xl border border-[#E8EFE6] shadow-sm cursor-pointer hover:shadow-md">
                                 <div className="aspect-square bg-[#F2F5F1] rounded-2xl overflow-hidden mb-2"><img src={p.image} className="w-full h-full object-cover"/></div>
                                 <h3 className="font-bold text-sm truncate">{p.name}</h3>
-                                <div className="flex justify-between text-xs mt-1"><span>₱{p.price.toFixed(2)}</span><span className="text-[#4A6741] font-bold">{p.stock} left</span></div>
+                                <div className="flex justify-between text-xs mt-1"><span>₱{Number(p.price || 0).toFixed(2)}</span><span className="text-[#4A6741] font-bold">{p.stock} left</span></div>
                                 <div className="flex gap-2 mt-2 border-t pt-2">
                                      <button onClick={(e) => {e.stopPropagation(); setAdjustingProduct(p)}} className="flex-1 bg-[#F2F5F1] h-8 rounded-lg flex items-center justify-center text-[#4A6741]"><SlidersHorizontal size={14}/></button>
                                      <button onClick={(e) => {e.stopPropagation(); setProductToDelete(p.id)}} className="flex-1 bg-[#F2F5F1] h-8 rounded-lg flex items-center justify-center text-red-400"><Trash2 size={14}/></button>

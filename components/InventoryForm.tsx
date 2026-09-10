@@ -316,7 +316,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                   <div className="relative flex-1">
                       <input 
                         type="text" 
-                        value={barcode}
+                        value={barcode || ''}
                         onChange={(e) => setBarcode(e.target.value)}
                         className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all uppercase"
                         placeholder="Scan or type..."
@@ -340,7 +340,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                   <input 
                     required
                     type="text" 
-                    value={name}
+                    value={name || ''}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full pl-4 pr-12 py-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all uppercase"
                     placeholder="e.g., Vanilla Latte"
@@ -365,7 +365,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                   required
                   type="number" 
                   step="0.01"
-                  value={price}
+                  value={price || ''}
                   onChange={(e) => setPrice(e.target.value)}
                   className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all uppercase"
                   placeholder="0.00"
@@ -376,7 +376,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                 <input 
                   type="number" 
                   step="0.01"
-                  value={costPrice}
+                  value={costPrice || ''}
                   onChange={(e) => setCostPrice(e.target.value)}
                   className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all uppercase"
                   placeholder="0.00"
@@ -390,7 +390,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                 <input 
                   required
                   type="number" 
-                  value={stock}
+                  value={stock || ''}
                   onChange={(e) => setStock(e.target.value)}
                   className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all uppercase"
                   placeholder="100"
@@ -400,7 +400,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                 <label className="block text-xs font-bold text-[#4A6741] uppercase tracking-wider mb-2">Category</label>
                 <div className="relative">
                     <select 
-                    value={category}
+                    value={category || ''}
                     onChange={(e) => setCategory(e.target.value as Category)}
                     className={`w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all appearance-none uppercase ${!category ? 'text-[#B0C4B0]' : ''}`}
                     required
@@ -432,7 +432,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ onSave, onClose, i
                 <label className="block text-xs font-bold text-[#4A6741] uppercase tracking-wider">Description</label>
               </div>
               <textarea 
-                value={description}
+                value={description || ''}
                 onChange={(e) => setDescription(e.target.value)}
                 className="w-full p-4 bg-[#F2F5F1] border-none rounded-2xl text-[#1A2F1A] font-medium placeholder-[#B0C4B0] focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 transition-all h-24 resize-none uppercase"
                 placeholder="Product details..."

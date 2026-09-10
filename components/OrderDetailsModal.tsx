@@ -86,10 +86,10 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, on
                                     </div>
                                     <div>
                                         <p className="font-bold text-[#1A2F1A] text-sm">{item.name}</p>
-                                        <p className="text-xs text-[#7A8C7A]">{item.quantity} x ₱{item.price.toFixed(2)}</p>
+                                        <p className="text-xs text-[#7A8C7A]">{item.quantity} x ₱{Number(item.price || 0).toFixed(2)}</p>
                                     </div>
                                 </div>
-                                <span className="font-bold text-[#1A2F1A] text-sm">₱{(item.price * item.quantity).toFixed(2)}</span>
+                                <span className="font-bold text-[#1A2F1A] text-sm">₱{Number((item.price * item.quantity) || 0).toFixed(2)}</span>
                             </div>
                         ))}
                     </div>
@@ -105,7 +105,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, on
             <div className="bg-[#F9FAF9] p-4 rounded-2xl border border-[#F2F5F1] mb-6 space-y-3">
                  <div className="flex justify-between text-sm text-[#7A8C7A]">
                     <span>Subtotal</span>
-                    <span>₱{subtotal.toFixed(2)}</span>
+                    <span>₱{Number(subtotal || 0).toFixed(2)}</span>
                 </div>
                 <div className="border-t border-dashed border-[#DCE7D9] pt-3 flex justify-between items-end">
                      <div>
@@ -115,7 +115,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, on
                              {transaction.paymentMethod || 'CASH'}
                          </div>
                      </div>
-                     <span className="text-2xl font-black text-[#1A2F1A]">₱{transaction.amount.toFixed(2)}</span>
+                     <span className="text-2xl font-black text-[#1A2F1A]">₱{Number(transaction.amount || 0).toFixed(2)}</span>
                 </div>
             </div>
             

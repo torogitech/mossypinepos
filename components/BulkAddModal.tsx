@@ -143,7 +143,7 @@ export const BulkAddModal: React.FC<BulkAddModalProps> = ({ onSave, onClose, cat
                     </div>
 
                     <textarea 
-                        value={csvData}
+                        value={csvData || ''}
                         onChange={(e) => setCsvData(e.target.value)}
                         className="w-full h-40 p-4 bg-[#F2F5F1] border-none rounded-2xl text-sm font-mono focus:ring-2 focus:ring-[#4A6741]/50 focus:outline-none placeholder-[#B0C4B0] uppercase"
                         placeholder="Paste CSV data here..."
@@ -191,8 +191,8 @@ export const BulkAddModal: React.FC<BulkAddModalProps> = ({ onSave, onClose, cat
                                 {previewData.map((item) => (
                                     <tr key={item.id}>
                                         <td className="p-3 font-medium">{item.name}</td>
-                                        <td className="p-3">₱{item.price.toFixed(2)}</td>
-                                        <td className="p-3 text-[#7A8C7A]">₱{item.costPrice.toFixed(2)}</td>
+                                        <td className="p-3">₱{Number(item.price || 0).toFixed(2)}</td>
+                                        <td className="p-3 text-[#7A8C7A]">₱{Number(item.costPrice || 0).toFixed(2)}</td>
                                         <td className="p-3 text-[#7A8C7A]">{item.category}</td>
                                         <td className="p-3">{item.stock}</td>
                                     </tr>

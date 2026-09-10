@@ -62,7 +62,7 @@ export const CategoryManagementModal: React.FC<CategoryManagementModalProps> = (
                   <div className="flex gap-2">
                       <input 
                           type="text" 
-                          value={newCategory}
+                          value={newCategory || ''}
                           onChange={(e) => setNewCategory(e.target.value)}
                           placeholder="e.g., Seasonal"
                           className="flex-1 p-3 bg-[#F2F5F1] rounded-2xl text-[#1A2F1A] font-bold focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 uppercase"

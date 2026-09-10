@@ -1,8 +1,17 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
+const getApiKey = (): string => {
+  return process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+};
+
 export const generateProductDescription = async (productName: string, category: string): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      console.warn("GEMINI_API_KEY is not configured.");
+      return "Freshly prepared and made with quality ingredients.";
+    }
+    const ai = new GoogleGenAI({ apiKey });
     const model = 'gemini-2.5-flash';
     const prompt = `Write a short, appetizing, and punchy marketing description (max 1 sentences) for a  product named "${productName}" in the category "${category}".`;
     
@@ -14,13 +23,18 @@ export const generateProductDescription = async (productName: string, category: 
     return response.text || "No description generated.";
   } catch (error) {
     console.error("Error generating description:", error);
-    return "My product.";
+    return "Freshly prepared and made with quality ingredients.";
   }
 };
 
 export const generateProductDetails = async (productName: string, categories: string[]) => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      console.warn("GEMINI_API_KEY is not configured.");
+      return null;
+    }
+    const ai = new GoogleGenAI({ apiKey });
     const model = 'gemini-2.5-flash';
     const prompt = `You are a store manager. Given the product name "${productName}", generate the following:
     1. A short, appetizing description (max 1 sentences).

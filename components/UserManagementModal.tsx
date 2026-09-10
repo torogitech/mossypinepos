@@ -113,16 +113,16 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div>
                         <label className="block text-xs font-bold text-[#7A8C7A] uppercase mb-2">Full Name</label>
-                        <input required type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-4 bg-[#F2F5F1] rounded-2xl text-[#1A2F1A] font-bold focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 uppercase" placeholder="e.g. Sarah Connor" />
+                        <input required type="text" value={name || ''} onChange={e => setName(e.target.value)} className="w-full p-4 bg-[#F2F5F1] rounded-2xl text-[#1A2F1A] font-bold focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 uppercase" placeholder="e.g. Sarah Connor" />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-[#7A8C7A] uppercase mb-2">Email</label>
-                            <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 bg-[#F2F5F1] rounded-2xl text-[#1A2F1A] font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 uppercase" placeholder="name@example.com" />
+                            <input required type="email" value={email || ''} onChange={e => setEmail(e.target.value)} className="w-full p-4 bg-[#F2F5F1] rounded-2xl text-[#1A2F1A] font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 uppercase" placeholder="name@example.com" />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-[#7A8C7A] uppercase mb-2">Phone</label>
-                            <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-4 bg-[#F2F5F1] rounded-2xl text-[#1A2F1A] font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 uppercase" placeholder="+1 234 567 890" />
+                            <input type="tel" value={phone || ''} onChange={e => setPhone(e.target.value)} className="w-full p-4 bg-[#F2F5F1] rounded-2xl text-[#1A2F1A] font-medium focus:outline-none focus:ring-2 focus:ring-[#4A6741]/50 uppercase" placeholder="+1 234 567 890" />
                         </div>
                     </div>
                     <div>
